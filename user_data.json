@@ -1,0 +1,48 @@
+{
+    "equipped_stratagems": [
+        "Resupply",
+        "Hellbomb",
+        "Orbital Napalm Barrage",
+        "Recoilless Rifle",
+        "Reinforce",
+        "Eagle Napalm Airstrike",
+        "Orbital Gatling Barrage",
+        "Gatling Sentry",
+        "Orbital Napalm Barrage",
+        "Eagle Airstrike"
+    ],
+    "keybinds": [
+        {
+            "key_code": "0x66",
+            "letter": "NumPad6"
+        },
+        {
+            "key_code": "0x67",
+            "letter": "NumPad7"
+        },
+        {
+            "key_code": "0x64",
+            "letter": "NumPad4"
+        },
+        {
+            "key_code": "0x61",
+            "letter": "NumPad1"
+        },
+        {
+            "key_code": "0x69",
+            "letter": "NumPad9"
+        },
+        {
+            "key_code": "0x68",
+            "letter": "NumPad8"
+        },
+        {
+            "key_code": "0x65",
+            "letter": "NumPad5"
+        },
+        {
+            "key_code": "0x62",
+            "letter": "NumPad2"
+        }
+    ]
+}
