@@ -151,18 +151,27 @@ class StratagemApp:
         self.keybinds = self.user_data.get("keybinds", [])
         self.equipped = self.user_data.get("equipped_stratagems", [])
 
+        desired_keybinds = [
+            {"key_code": "0x67", "letter": "NumPad7"},
+            {"key_code": "0x68", "letter": "NumPad8"},
+            {"key_code": "0x69", "letter": "NumPad9"},
+            {"key_code": "0x64", "letter": "NumPad4"},
+            {"key_code": "0x65", "letter": "NumPad5"},
+            {"key_code": "0x66", "letter": "NumPad6"},
+            {"key_code": "0x61", "letter": "NumPad1"},
+            {"key_code": "0x62", "letter": "NumPad2"},
+            {"key_code": "0x63", "letter": "NumPad3"},
+        ]
+
         if not self.keybinds:
-            self.keybinds = [
-                {"key_code": "0x61", "letter": "NumPad1"},
-                {"key_code": "0x62", "letter": "NumPad2"},
-                {"key_code": "0x63", "letter": "NumPad3"},
-                {"key_code": "0x64", "letter": "NumPad4"},
-                {"key_code": "0x65", "letter": "NumPad5"},
-                {"key_code": "0x66", "letter": "NumPad6"},
-                {"key_code": "0x67", "letter": "NumPad7"},
-                {"key_code": "0x68", "letter": "NumPad8"},
-                {"key_code": "0x69", "letter": "NumPad9"},
-            ]
+            self.keybinds = list(desired_keybinds)
+        else:
+            existing = {entry.get("letter") for entry in self.keybinds}
+            missing = [entry for entry in desired_keybinds if entry["letter"] not in existing]
+            if missing:
+                self.keybinds.extend(missing)
+            order_map = {entry["letter"]: idx for idx, entry in enumerate(desired_keybinds)}
+            self.keybinds.sort(key=lambda entry: order_map.get(entry.get("letter"), 999))
 
         for name in self.equipped:
             if name and name not in self.stratagem_names:
@@ -172,6 +181,7 @@ class StratagemApp:
             default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
+        save_user_data(self.equipped, self.keybinds)
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
