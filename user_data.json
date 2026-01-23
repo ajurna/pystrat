@@ -1,14 +1,14 @@
 {
     "equipped_stratagems": [
-        "Orbital Precision Strike",
+        "Hellbomb",
         "Reinforce",
-        "Orbital Napalm Barrage",
+        "Reinforce",
+        "Laser Sentry",
+        "Flame Sentry",
+        "Resupply",
         "Recoilless Rifle",
-        "Defoliation Tool",
-        "Eagle Napalm Airstrike",
-        "Orbital Gatling Barrage",
         "Gatling Sentry",
-        "Orbital Napalm Barrage"
+        "SEAF Artillery"
     ],
     "keybinds": [
         {
@@ -48,5 +48,6 @@
             "letter": "NumPad3"
         }
     ],
-    "input_mode": "vk"
+    "input_mode": "vk",
+    "key_delay_ms": 40
 }

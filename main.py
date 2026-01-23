@@ -80,7 +80,7 @@ def load_stratagems() -> List[Stratagem]:
 
 def load_user_data() -> Dict[str, List]:
     if not DATA_FILE.exists():
-        return {"equipped_stratagems": [], "keybinds": []}
+        return {"equipped_stratagems": [], "keybinds": [], "key_delay_ms": 40}
     with DATA_FILE.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -89,10 +89,13 @@ def save_user_data(
     equipped: List[str],
     keybinds: List[Dict[str, str]],
     input_mode: Optional[str] = None,
+    key_delay_ms: Optional[int] = None,
 ) -> None:
     payload = {"equipped_stratagems": equipped, "keybinds": keybinds}
     if input_mode:
         payload["input_mode"] = input_mode
+    if key_delay_ms is not None:
+        payload["key_delay_ms"] = key_delay_ms
     with DATA_FILE.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=4)
 
@@ -196,6 +199,7 @@ class StratagemApp:
         self.keybinds = self.user_data.get("keybinds", [])
         self.equipped = self.user_data.get("equipped_stratagems", [])
         self.input_mode = self.user_data.get("input_mode", "scancode")
+        self.key_delay_ms = int(self.user_data.get("key_delay_ms", 40))
         if self.input_mode not in INPUT_MODE_OPTIONS:
             self.input_mode = "scancode"
 
@@ -229,7 +233,7 @@ class StratagemApp:
             default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
-        save_user_data(self.equipped, self.keybinds, self.input_mode)
+        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
@@ -294,6 +298,30 @@ class StratagemApp:
         )
         mode_combo.pack(side="left")
         mode_combo.bind("<<ComboboxSelected>>", self.on_input_mode_change)
+
+        delay_frame = tk.Frame(self.root, bg=DARK_BG)
+        delay_frame.grid(row=1, column=0, sticky="w", padx=20, pady=(0, 12))
+        delay_label = tk.Label(
+            delay_frame,
+            text="Key Delay (ms):",
+            bg=DARK_BG,
+            fg=MUTED_FG,
+            font=("Segoe UI", 9),
+        )
+        delay_label.pack(side="left", padx=(0, 6))
+        self.key_delay_var = tk.IntVar(value=self.key_delay_ms)
+        delay_spin = tk.Spinbox(
+            delay_frame,
+            from_=10,
+            to=300,
+            increment=5,
+            textvariable=self.key_delay_var,
+            width=5,
+            command=self.on_key_delay_change,
+            justify="center",
+        )
+        delay_spin.bind("<FocusOut>", lambda _e: self.on_key_delay_change())
+        delay_spin.pack(side="left")
 
         grid_frame = tk.Frame(self.root, bg=DARK_BG)
         grid_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
@@ -382,7 +410,7 @@ class StratagemApp:
         self.sequence_labels[index].configure(text=self.sequence_for(name))
         self.name_labels[index].configure(text=name)
         self.update_icon(index)
-        save_user_data(self.equipped, self.keybinds, self.input_mode)
+        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
 
     def open_icon_picker(self, index: int) -> None:
         picker = tk.Toplevel(self.root)
@@ -480,7 +508,17 @@ class StratagemApp:
         label = self.input_mode_var.get()
         reverse_map = {value: key for key, value in INPUT_MODE_OPTIONS.items()}
         self.input_mode = reverse_map.get(label, "scancode")
-        save_user_data(self.equipped, self.keybinds, self.input_mode)
+        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
+
+    def on_key_delay_change(self) -> None:
+        try:
+            value = int(self.key_delay_var.get())
+        except Exception:
+            return
+        value = max(10, min(300, value))
+        self.key_delay_ms = value
+        self.key_delay_var.set(value)
+        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
 
     def update_icon(self, index: int) -> None:
         name = self.equipped[index]
@@ -688,7 +726,7 @@ class StratagemApp:
                 send_key(vk, 0)
                 time.sleep(0.02)
                 send_key(vk, KEYEVENTF_KEYUP)
-            time.sleep(0.04)
+            time.sleep(self.key_delay_ms / 1000.0)
         send_ctrl(KEYEVENTF_KEYUP)
 
     def on_close(self) -> None:
