@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, simpledialog, ttk
 
 SVG_ERROR = None
 try:
@@ -80,7 +80,13 @@ def load_stratagems() -> List[Stratagem]:
 
 def load_user_data() -> Dict[str, List]:
     if not DATA_FILE.exists():
-        return {"equipped_stratagems": [], "keybinds": [], "key_delay_ms": 40}
+        return {
+            "equipped_stratagems": [],
+            "keybinds": [],
+            "key_delay_ms": 40,
+            "presets": {},
+            "active_preset": "",
+        }
     with DATA_FILE.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -90,12 +96,18 @@ def save_user_data(
     keybinds: List[Dict[str, str]],
     input_mode: Optional[str] = None,
     key_delay_ms: Optional[int] = None,
+    presets: Optional[Dict[str, List[str]]] = None,
+    active_preset: Optional[str] = None,
 ) -> None:
     payload = {"equipped_stratagems": equipped, "keybinds": keybinds}
     if input_mode:
         payload["input_mode"] = input_mode
     if key_delay_ms is not None:
         payload["key_delay_ms"] = key_delay_ms
+    if presets is not None:
+        payload["presets"] = presets
+    if active_preset is not None:
+        payload["active_preset"] = active_preset
     with DATA_FILE.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=4)
 
@@ -200,6 +212,8 @@ class StratagemApp:
         self.equipped = self.user_data.get("equipped_stratagems", [])
         self.input_mode = self.user_data.get("input_mode", "scancode")
         self.key_delay_ms = int(self.user_data.get("key_delay_ms", 40))
+        self.presets: Dict[str, List[str]] = self.user_data.get("presets", {})
+        self.active_preset = self.user_data.get("active_preset", "")
         if self.input_mode not in INPUT_MODE_OPTIONS:
             self.input_mode = "scancode"
 
@@ -233,7 +247,14 @@ class StratagemApp:
             default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
-        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
@@ -323,6 +344,31 @@ class StratagemApp:
         delay_spin.bind("<FocusOut>", lambda _e: self.on_key_delay_change())
         delay_spin.pack(side="left")
 
+        preset_frame = tk.Frame(self.root, bg=DARK_BG)
+        preset_frame.grid(row=0, column=0, sticky="e", padx=20, pady=(18, 6))
+        preset_label = tk.Label(
+            preset_frame,
+            text="Preset:",
+            bg=DARK_BG,
+            fg=MUTED_FG,
+            font=("Segoe UI", 9),
+        )
+        preset_label.pack(side="left", padx=(0, 6))
+        self.preset_var = tk.StringVar(value=self.active_preset)
+        self.preset_combo = ttk.Combobox(
+            preset_frame,
+            textvariable=self.preset_var,
+            values=self.get_preset_names(),
+            state="readonly",
+            width=20,
+        )
+        self.preset_combo.pack(side="left", padx=(0, 6))
+        self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_select)
+        preset_save = ttk.Button(preset_frame, text="Save", command=self.save_preset_prompt)
+        preset_save.pack(side="left", padx=(0, 4))
+        preset_delete = ttk.Button(preset_frame, text="Delete", command=self.delete_preset)
+        preset_delete.pack(side="left")
+
         grid_frame = tk.Frame(self.root, bg=DARK_BG)
         grid_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
 
@@ -410,7 +456,14 @@ class StratagemApp:
         self.sequence_labels[index].configure(text=self.sequence_for(name))
         self.name_labels[index].configure(text=name)
         self.update_icon(index)
-        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
 
     def open_icon_picker(self, index: int) -> None:
         picker = tk.Toplevel(self.root)
@@ -508,7 +561,14 @@ class StratagemApp:
         label = self.input_mode_var.get()
         reverse_map = {value: key for key, value in INPUT_MODE_OPTIONS.items()}
         self.input_mode = reverse_map.get(label, "scancode")
-        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
 
     def on_key_delay_change(self) -> None:
         try:
@@ -518,7 +578,77 @@ class StratagemApp:
         value = max(10, min(300, value))
         self.key_delay_ms = value
         self.key_delay_var.set(value)
-        save_user_data(self.equipped, self.keybinds, self.input_mode, self.key_delay_ms)
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
+
+    def get_preset_names(self) -> List[str]:
+        return sorted(self.presets.keys())
+
+    def refresh_preset_combo(self) -> None:
+        self.preset_combo.configure(values=self.get_preset_names())
+        if self.active_preset:
+            self.preset_var.set(self.active_preset)
+
+    def save_preset_prompt(self) -> None:
+        name = simpledialog.askstring("Save Preset", "Preset name:", parent=self.root)
+        if not name:
+            return
+        self.presets[name] = list(self.equipped)
+        self.active_preset = name
+        self.refresh_preset_combo()
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
+
+    def delete_preset(self) -> None:
+        name = self.preset_var.get()
+        if not name:
+            return
+        if not messagebox.askyesno("Delete Preset", f"Delete preset '{name}'?", parent=self.root):
+            return
+        self.presets.pop(name, None)
+        if self.active_preset == name:
+            self.active_preset = ""
+            self.preset_var.set("")
+        self.refresh_preset_combo()
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
+
+    def on_preset_select(self, _event: tk.Event) -> None:
+        name = self.preset_var.get()
+        if not name:
+            return
+        loadout = self.presets.get(name)
+        if not loadout:
+            return
+        self.active_preset = name
+        for idx, strat_name in enumerate(loadout[: len(self.equipped)]):
+            self.set_stratagem(idx, strat_name)
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
 
     def update_icon(self, index: int) -> None:
         name = self.equipped[index]

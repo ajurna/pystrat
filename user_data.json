@@ -3,8 +3,8 @@
         "Hellbomb",
         "Reinforce",
         "Reinforce",
-        "Laser Sentry",
-        "Flame Sentry",
+        "Orbital Napalm Barrage",
+        "Orbital Gatling Barrage",
         "Resupply",
         "Recoilless Rifle",
         "Gatling Sentry",
@@ -49,5 +49,30 @@
         }
     ],
     "input_mode": "vk",
-    "key_delay_ms": 40
+    "key_delay_ms": 40,
+    "presets": {
+        "Eradicate": [
+            "Hellbomb",
+            "Reinforce",
+            "Reinforce",
+            "Laser Sentry",
+            "Flame Sentry",
+            "Resupply",
+            "Recoilless Rifle",
+            "Gatling Sentry",
+            "SEAF Artillery"
+        ],
+        "Default": [
+            "Hellbomb",
+            "Reinforce",
+            "Reinforce",
+            "Orbital Napalm Barrage",
+            "Orbital Gatling Barrage",
+            "Resupply",
+            "Recoilless Rifle",
+            "Gatling Sentry",
+            "SEAF Artillery"
+        ]
+    },
+    "active_preset": "Default"
 }
