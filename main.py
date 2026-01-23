@@ -415,7 +415,7 @@ class StratagemApp:
                 text=self.sequence_for(self.equipped[index]),
                 bg=CARD_BG,
                 fg=MUTED_FG,
-                font=("Consolas", 11),
+                font=("Segoe UI Black", 16, "bold"),
             )
             seq_label.grid(row=2, column=1, sticky="w")
 
@@ -449,7 +449,9 @@ class StratagemApp:
         strat = self.stratagem_map.get(name)
         if not strat:
             return "?"
-        return " ".join(strat.sequence)
+        arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
+        display = [arrows.get(step.upper(), step) for step in strat.sequence]
+        return " ".join(display)
 
     def set_stratagem(self, index: int, name: str) -> None:
         self.equipped[index] = name
