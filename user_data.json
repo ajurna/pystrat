@@ -47,5 +47,6 @@
             "key_code": "0x63",
             "letter": "NumPad3"
         }
-    ]
+    ],
+    "input_mode": "vk"
 }

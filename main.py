@@ -47,6 +47,12 @@ WM_QUIT = 0x0012
 MOD_NOREPEAT = 0x4000
 DEBUG_KEY_CAPTURE = False
 
+INPUT_MODE_OPTIONS = {
+    "scancode": "Scancode",
+    "vk": "Virtual Key",
+    "unicode": "Unicode",
+}
+
 LOCAL_KEYSYM_TO_INDEX = {
     "KP_7": 0,
     "KP_8": 1,
@@ -79,8 +85,14 @@ def load_user_data() -> Dict[str, List]:
         return json.load(handle)
 
 
-def save_user_data(equipped: List[str], keybinds: List[Dict[str, str]]) -> None:
+def save_user_data(
+    equipped: List[str],
+    keybinds: List[Dict[str, str]],
+    input_mode: Optional[str] = None,
+) -> None:
     payload = {"equipped_stratagems": equipped, "keybinds": keybinds}
+    if input_mode:
+        payload["input_mode"] = input_mode
     with DATA_FILE.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=4)
 
@@ -183,6 +195,9 @@ class StratagemApp:
         self.user_data = load_user_data()
         self.keybinds = self.user_data.get("keybinds", [])
         self.equipped = self.user_data.get("equipped_stratagems", [])
+        self.input_mode = self.user_data.get("input_mode", "scancode")
+        if self.input_mode not in INPUT_MODE_OPTIONS:
+            self.input_mode = "scancode"
 
         desired_keybinds = [
             {"key_code": "0x67", "letter": "NumPad7"},
@@ -214,7 +229,7 @@ class StratagemApp:
             default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
-        save_user_data(self.equipped, self.keybinds)
+        save_user_data(self.equipped, self.keybinds, self.input_mode)
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
@@ -257,6 +272,28 @@ class StratagemApp:
             font=("Segoe UI", 10),
         )
         subtitle.grid(row=1, column=0, sticky="n", pady=(0, 12))
+
+        mode_frame = tk.Frame(self.root, bg=DARK_BG)
+        mode_frame.grid(row=1, column=0, sticky="e", padx=20, pady=(0, 12))
+        mode_label = tk.Label(
+            mode_frame,
+            text="Input Mode:",
+            bg=DARK_BG,
+            fg=MUTED_FG,
+            font=("Segoe UI", 9),
+        )
+        mode_label.pack(side="left", padx=(0, 6))
+
+        self.input_mode_var = tk.StringVar(value=INPUT_MODE_OPTIONS[self.input_mode])
+        mode_combo = ttk.Combobox(
+            mode_frame,
+            textvariable=self.input_mode_var,
+            values=list(INPUT_MODE_OPTIONS.values()),
+            state="readonly",
+            width=12,
+        )
+        mode_combo.pack(side="left")
+        mode_combo.bind("<<ComboboxSelected>>", self.on_input_mode_change)
 
         grid_frame = tk.Frame(self.root, bg=DARK_BG)
         grid_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
@@ -336,14 +373,20 @@ class StratagemApp:
     def sequence_for(self, name: str) -> str:
         strat = self.stratagem_map.get(name)
         if not strat:
-            return "Sequence: ?"
-        return "Sequence: " + " ".join(strat.sequence)
+            return "?"
+        return " ".join(strat.sequence)
 
     def on_stratagem_change(self, index: int) -> None:
         self.equipped[index] = self.slot_vars[index].get()
         self.sequence_labels[index].configure(text=self.sequence_for(self.equipped[index]))
         self.update_icon(index)
-        save_user_data(self.equipped, self.keybinds)
+        save_user_data(self.equipped, self.keybinds, self.input_mode)
+
+    def on_input_mode_change(self, _event: tk.Event) -> None:
+        label = self.input_mode_var.get()
+        reverse_map = {value: key for key, value in INPUT_MODE_OPTIONS.items()}
+        self.input_mode = reverse_map.get(label, "scancode")
+        save_user_data(self.equipped, self.keybinds, self.input_mode)
 
     def update_icon(self, index: int) -> None:
         name = self.equipped[index]
@@ -478,6 +521,7 @@ class StratagemApp:
         user32 = ctypes.windll.user32
         KEYEVENTF_SCANCODE = 0x0008
         KEYEVENTF_KEYUP = 0x0002
+        KEYEVENTF_UNICODE = 0x0004
 
         class KEYBDINPUT(ctypes.Structure):
             _fields_ = [
@@ -488,21 +532,60 @@ class StratagemApp:
                 ("dwExtraInfo", ctypes.c_void_p),
             ]
 
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = [
+                ("dx", ctypes.c_long),
+                ("dy", ctypes.c_long),
+                ("mouseData", ctypes.c_ulong),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.c_void_p),
+            ]
+
+        class HARDWAREINPUT(ctypes.Structure):
+            _fields_ = [
+                ("uMsg", ctypes.c_ulong),
+                ("wParamL", ctypes.c_ushort),
+                ("wParamH", ctypes.c_ushort),
+            ]
+
+        class INPUTUNION(ctypes.Union):
+            _fields_ = [
+                ("ki", KEYBDINPUT),
+                ("mi", MOUSEINPUT),
+                ("hi", HARDWAREINPUT),
+            ]
+
         class INPUT(ctypes.Structure):
-            _fields_ = [("type", ctypes.c_ulong), ("ki", KEYBDINPUT)]
+            _fields_ = [("type", ctypes.c_ulong), ("union", INPUTUNION)]
+
+        user32.SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
+        user32.SendInput.restype = ctypes.c_uint
 
         def send_key(vk: int, flags: int) -> None:
-            scan = user32.MapVirtualKeyW(vk, 0)
-            inp = INPUT(1, KEYBDINPUT(vk, scan, flags | KEYEVENTF_SCANCODE, 0, None))
-            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+            if self.input_mode == "unicode":
+                inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, vk, flags | KEYEVENTF_UNICODE, 0, None)))
+            elif self.input_mode == "vk":
+                inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(vk, 0, flags, 0, None)))
+            else:
+                scan = user32.MapVirtualKeyW(vk, 0)
+                inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)))
+            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
         for entry in sequence:
-            vk = KEY_VK.get(entry.upper())
+            key_name = entry.upper()
+            vk = KEY_VK.get(key_name)
             if not vk:
                 continue
-            send_key(vk, 0)
-            time.sleep(0.02)
-            send_key(vk, KEYEVENTF_KEYUP)
+            if self.input_mode == "unicode":
+                code = ord(key_name.lower())
+                send_key(code, 0)
+                time.sleep(0.02)
+                send_key(code, KEYEVENTF_KEYUP)
+            else:
+                send_key(vk, 0)
+                time.sleep(0.02)
+                send_key(vk, KEYEVENTF_KEYUP)
             time.sleep(0.04)
 
     def on_close(self) -> None:
