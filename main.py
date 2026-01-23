@@ -616,6 +616,7 @@ class StratagemApp:
         KEYEVENTF_SCANCODE = 0x0008
         KEYEVENTF_KEYUP = 0x0002
         KEYEVENTF_UNICODE = 0x0004
+        VK_CONTROL = 0x11
 
         class KEYBDINPUT(ctypes.Structure):
             _fields_ = [
@@ -666,6 +667,13 @@ class StratagemApp:
                 inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)))
             user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
+        def send_ctrl(flags: int) -> None:
+            scan = user32.MapVirtualKeyW(VK_CONTROL, 0)
+            inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)))
+            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+
+        send_ctrl(0)
+        time.sleep(0.02)
         for entry in sequence:
             key_name = entry.upper()
             vk = KEY_VK.get(key_name)
@@ -681,6 +689,7 @@ class StratagemApp:
                 time.sleep(0.02)
                 send_key(vk, KEYEVENTF_KEYUP)
             time.sleep(0.04)
+        send_ctrl(KEYEVENTF_KEYUP)
 
     def on_close(self) -> None:
         if self.hotkeys:
