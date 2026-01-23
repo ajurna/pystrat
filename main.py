@@ -233,9 +233,9 @@ class StratagemApp:
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
-        self.slot_vars: List[tk.StringVar] = []
         self.sequence_labels: List[tk.Label] = []
         self.icon_labels: List[tk.Label] = []
+        self.name_labels: List[tk.Label] = []
 
         self.status_var = tk.StringVar(value="Ready")
         self.last_icon_error: Optional[str] = None
@@ -322,19 +322,19 @@ class StratagemApp:
 
             icon_label = tk.Label(card, bg="#0f0f12", width=64, height=64, anchor="center")
             icon_label.grid(row=1, column=0, rowspan=2, padx=(0, 12), pady=6)
+            icon_label.bind("<Button-1>", lambda _e, i=index: self.open_icon_picker(i))
 
-            strat_var = tk.StringVar(value=self.equipped[index])
-            self.slot_vars.append(strat_var)
-
-            combo = ttk.Combobox(
+            name_label = tk.Label(
                 card,
-                textvariable=strat_var,
-                values=self.stratagem_names,
-                state="readonly",
-                width=30,
+                text=self.equipped[index],
+                bg=CARD_BG,
+                fg=TEXT_FG,
+                font=("Segoe UI", 11, "bold"),
+                anchor="w",
+                cursor="hand2",
             )
-            combo.grid(row=1, column=1, sticky="ew")
-            combo.bind("<<ComboboxSelected>>", lambda _e, i=index: self.on_stratagem_change(i))
+            name_label.grid(row=1, column=1, sticky="ew")
+            name_label.bind("<Button-1>", lambda _e, i=index: self.open_icon_picker(i))
 
             seq_label = tk.Label(
                 card,
@@ -347,6 +347,7 @@ class StratagemApp:
 
             self.sequence_labels.append(seq_label)
             self.icon_labels.append(icon_label)
+            self.name_labels.append(name_label)
 
             self.update_icon(index)
 
@@ -376,11 +377,104 @@ class StratagemApp:
             return "?"
         return " ".join(strat.sequence)
 
-    def on_stratagem_change(self, index: int) -> None:
-        self.equipped[index] = self.slot_vars[index].get()
-        self.sequence_labels[index].configure(text=self.sequence_for(self.equipped[index]))
+    def set_stratagem(self, index: int, name: str) -> None:
+        self.equipped[index] = name
+        self.sequence_labels[index].configure(text=self.sequence_for(name))
+        self.name_labels[index].configure(text=name)
         self.update_icon(index)
         save_user_data(self.equipped, self.keybinds, self.input_mode)
+
+    def open_icon_picker(self, index: int) -> None:
+        picker = tk.Toplevel(self.root)
+        picker.title("Select Stratagem")
+        picker.configure(bg=DARK_BG)
+        picker.geometry("720x520")
+        picker.transient(self.root)
+        picker.grab_set()
+
+        header = tk.Label(
+            picker,
+            text="Select Stratagem",
+            bg=DARK_BG,
+            fg=TEXT_FG,
+            font=("Segoe UI", 14, "bold"),
+        )
+        header.pack(pady=(16, 8))
+
+        container = tk.Frame(picker, bg=DARK_BG)
+        container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+
+        canvas = tk.Canvas(container, bg=DARK_BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg=DARK_BG)
+        scroll_frame.bind(
+            "<Configure>",
+            lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        canvas.bind_all("<Button-4>", lambda _e: canvas.yview_scroll(-3, "units"))
+        canvas.bind_all("<Button-5>", lambda _e: canvas.yview_scroll(3, "units"))
+
+        columns = 6
+        size = 52
+        for idx, name in enumerate(self.stratagem_names):
+            row = idx // columns
+            col = idx % columns
+            cell = tk.Frame(scroll_frame, bg=CARD_BG, padx=6, pady=6)
+            cell.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
+
+            icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
+            icon.pack()
+            photo = self.get_icon_photo(name, size)
+            if photo:
+                icon.configure(image=photo)
+                icon.image = photo
+            else:
+                icon.configure(text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7))
+
+            label = tk.Label(
+                cell,
+                text=name,
+                bg=CARD_BG,
+                fg=TEXT_FG,
+                font=("Segoe UI", 8),
+                wraplength=110,
+                justify="center",
+            )
+            label.pack(pady=(4, 0))
+
+            for widget in (cell, icon, label):
+                widget.bind(
+                    "<Button-1>",
+                    lambda _e, n=name: self._select_stratagem_from_picker(picker, index, n),
+                )
+
+    def _select_stratagem_from_picker(self, picker: tk.Toplevel, index: int, name: str) -> None:
+        self.set_stratagem(index, name)
+        picker.destroy()
+
+    def get_icon_photo(self, name: str, size: int) -> Optional["ImageTk.PhotoImage"]:
+        cache_key = (name, size)
+        if cache_key in self.icon_cache and self.icon_cache[cache_key]:
+            return self.icon_cache[cache_key]
+
+        svg_path = ICON_DIR / f"{name}.svg"
+        if not svg_path.exists() or not SVG_AVAILABLE:
+            return None
+        try:
+            cache_path = render_svg_to_png(svg_path, size)
+            if not cache_path or not cache_path.exists():
+                return None
+            image = Image.open(cache_path).convert("RGBA")
+            photo = ImageTk.PhotoImage(image)
+            self.icon_cache[cache_key] = photo
+            return photo
+        except Exception:
+            return None
 
     def on_input_mode_change(self, _event: tk.Event) -> None:
         label = self.input_mode_var.get()
