@@ -471,9 +471,18 @@ class StratagemApp:
         picker = tk.Toplevel(self.root)
         picker.title("Select Stratagem")
         picker.configure(bg=DARK_BG)
-        picker.geometry("720x520")
         picker.transient(self.root)
         picker.grab_set()
+        picker.update_idletasks()
+        width = 720
+        height = 520
+        root_x = self.root.winfo_rootx()
+        root_y = self.root.winfo_rooty()
+        root_w = self.root.winfo_width()
+        root_h = self.root.winfo_height()
+        pos_x = max(root_x + (root_w - width) // 2, 0)
+        pos_y = max(root_y + (root_h - height) // 2, 0)
+        picker.geometry(f"{width}x{height}+{pos_x}+{pos_y}")
 
         header = tk.Label(
             picker,
