@@ -11,20 +11,23 @@ from typing import Callable, Dict, List, Optional, Tuple
 import tkinter as tk
 from tkinter import ttk
 
+SVG_ERROR = None
 try:
     import cairosvg  # type: ignore
     from PIL import Image, ImageTk  # type: ignore
 
     SVG_AVAILABLE = True
-except Exception:
+except Exception as exc:
     SVG_AVAILABLE = False
+    SVG_ERROR = str(exc)
 
 
 APP_TITLE = "Stratagem Hotkeys"
-DATA_FILE = Path("user_data.json")
-STRATAGEMS_FILE = Path("stratagems.json")
-ICON_DIR = Path("StratagemIcons")
-ICON_CACHE_DIR = Path(".icon_cache")
+BASE_DIR = Path(__file__).resolve().parent
+DATA_FILE = BASE_DIR / "user_data.json"
+STRATAGEMS_FILE = BASE_DIR / "stratagems.json"
+ICON_DIR = BASE_DIR / "StratagemIcons"
+ICON_CACHE_DIR = BASE_DIR / ".icon_cache"
 
 DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
@@ -190,6 +193,7 @@ class StratagemApp:
         self.icon_labels: List[tk.Label] = []
 
         self.status_var = tk.StringVar(value="Ready")
+        self.last_icon_error: Optional[str] = None
 
         self.hotkeys: Optional[HotkeyManager] = None
         self.build_ui()
@@ -269,17 +273,25 @@ class StratagemApp:
 
             self.update_icon(index)
 
+        status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
+        status_frame.pack(side="bottom", fill="x")
+        status_frame.pack_propagate(False)
         status = tk.Label(
-            self.root,
+            status_frame,
             textvariable=self.status_var,
-            bg=DARK_BG,
-            fg=MUTED_FG,
+            bg=CARD_BG,
+            fg=TEXT_FG,
             font=("Segoe UI", 9),
+            anchor="w",
+            padx=12,
         )
-        status.pack(pady=(6, 16))
+        status.pack(fill="both", expand=True)
 
         if not SVG_AVAILABLE:
-            self.status_var.set("SVG support disabled. Install cairosvg and pillow to show icons.")
+            message = "SVG support disabled. Install cairosvg and pillow to show icons."
+            if SVG_ERROR:
+                message = f"SVG support disabled: {SVG_ERROR}"
+            self.status_var.set(message)
 
     def sequence_for(self, name: str) -> str:
         strat = self.stratagem_map.get(name)
@@ -324,9 +336,11 @@ class StratagemApp:
     def render_icon_async(self, name: str, size: int, svg_path: Path) -> None:
         cache_key = (name, size)
         cache_path: Optional[Path] = None
+        error_message: Optional[str] = None
         try:
             cache_path = render_svg_to_png(svg_path, size)
-        except Exception:
+        except Exception as exc:
+            error_message = f"Icon render failed: {exc}"
             cache_path = None
 
         def apply_icon() -> None:
@@ -335,6 +349,9 @@ class StratagemApp:
                     image = Image.open(cache_path).convert("RGBA")
                     photo = ImageTk.PhotoImage(image)
                     self.icon_cache[cache_key] = photo
+                elif error_message and error_message != self.last_icon_error:
+                    self.last_icon_error = error_message
+                    self.status_var.set(error_message)
             finally:
                 self.icon_jobs.discard(cache_key)
                 for idx, current_name in enumerate(self.equipped):
