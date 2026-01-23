@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import threading
 import time
 from dataclasses import dataclass
@@ -42,7 +43,21 @@ KEY_VK = {
 }
 
 WM_HOTKEY = 0x0312
+WM_QUIT = 0x0012
 MOD_NOREPEAT = 0x4000
+DEBUG_KEY_CAPTURE = False
+
+LOCAL_KEYSYM_TO_INDEX = {
+    "KP_7": 0,
+    "KP_8": 1,
+    "KP_9": 2,
+    "KP_4": 3,
+    "KP_5": 4,
+    "KP_6": 5,
+    "KP_1": 6,
+    "KP_2": 7,
+    "KP_3": 8,
+}
 
 
 @dataclass
@@ -95,7 +110,7 @@ def parse_key_code(code: str) -> int:
 
 
 class HotkeyManager:
-    def __init__(self) -> None:
+    def __init__(self, notify: Callable[[int], None]) -> None:
         if os.name != "nt":
             raise RuntimeError("Hotkeys require Windows.")
         import ctypes
@@ -104,7 +119,12 @@ class HotkeyManager:
         self.ctypes = ctypes
         self.wintypes = wintypes
         self.user32 = ctypes.windll.user32
-        self.handlers: Dict[int, Callable[[], None]] = {}
+        self.notify = notify
+        self.thread: Optional[threading.Thread] = None
+        self.thread_id: Optional[int] = None
+        self.ready = threading.Event()
+        self.errors: List[str] = []
+        self.hotkey_map: Dict[int, int] = {}
 
         class MSG(ctypes.Structure):
             _fields_ = [
@@ -118,25 +138,35 @@ class HotkeyManager:
 
         self.MSG = MSG
 
-    def register(self, hotkey_id: int, vk: int, handler: Callable[[], None]) -> None:
-        if not self.user32.RegisterHotKey(None, hotkey_id, MOD_NOREPEAT, vk):
-            raise RuntimeError(f"Failed to register hotkey {hotkey_id}")
-        self.handlers[hotkey_id] = handler
+    def start(self, hotkey_map: Dict[int, int]) -> None:
+        self.hotkey_map = dict(hotkey_map)
+        self.thread = threading.Thread(target=self._message_loop, daemon=True)
+        self.thread.start()
+        self.ready.wait(timeout=2)
 
-    def unregister_all(self) -> None:
-        for hotkey_id in list(self.handlers.keys()):
-            self.user32.UnregisterHotKey(None, hotkey_id)
-        self.handlers.clear()
+    def stop(self) -> None:
+        if self.thread_id is not None:
+            self.user32.PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0)
+        if self.thread:
+            self.thread.join(timeout=1)
 
-    def pump(self, max_messages: int = 25) -> None:
+    def _message_loop(self) -> None:
         msg = self.MSG()
-        for _ in range(max_messages):
-            if not self.user32.PeekMessageW(self.ctypes.byref(msg), None, 0, 0, 1):
-                break
+        self.thread_id = self.ctypes.windll.kernel32.GetCurrentThreadId()
+        self.user32.PeekMessageW(self.ctypes.byref(msg), None, 0, 0, 0)
+
+        for hotkey_id, vk in self.hotkey_map.items():
+            if not self.user32.RegisterHotKey(None, hotkey_id, MOD_NOREPEAT, vk):
+                self.errors.append(f"Failed to register hotkey {hotkey_id}")
+
+        self.ready.set()
+
+        while self.user32.GetMessageW(self.ctypes.byref(msg), None, 0, 0) != 0:
             if msg.message == WM_HOTKEY:
-                handler = self.handlers.get(msg.wParam)
-                if handler:
-                    handler()
+                self.notify(int(msg.wParam))
+
+        for hotkey_id in list(self.hotkey_map.keys()):
+            self.user32.UnregisterHotKey(None, hotkey_id)
 
 
 class StratagemApp:
@@ -196,10 +226,20 @@ class StratagemApp:
         self.last_icon_error: Optional[str] = None
 
         self.hotkeys: Optional[HotkeyManager] = None
+        self.hotkey_id_to_index: Dict[int, int] = {}
+        self.ui_queue: "queue.Queue[Callable[[], None]]" = queue.Queue()
         self.build_ui()
         self.register_hotkeys()
+        self.register_local_bindings()
+        if DEBUG_KEY_CAPTURE:
+            self.register_debug_key_capture()
+        self.root.after(100, self.root.focus_set)
+        self.root.after(30, self.process_ui_queue)
 
     def build_ui(self) -> None:
+        self.root.grid_rowconfigure(2, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
         header = tk.Label(
             self.root,
             text="Stratagem Hotkeys",
@@ -207,7 +247,7 @@ class StratagemApp:
             fg=TEXT_FG,
             font=("Segoe UI", 18, "bold"),
         )
-        header.pack(pady=(18, 6))
+        header.grid(row=0, column=0, sticky="n", pady=(18, 6))
 
         subtitle = tk.Label(
             self.root,
@@ -216,10 +256,10 @@ class StratagemApp:
             fg=MUTED_FG,
             font=("Segoe UI", 10),
         )
-        subtitle.pack(pady=(0, 12))
+        subtitle.grid(row=1, column=0, sticky="n", pady=(0, 12))
 
         grid_frame = tk.Frame(self.root, bg=DARK_BG)
-        grid_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        grid_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
 
         columns = 3
         rows = 3
@@ -274,7 +314,7 @@ class StratagemApp:
             self.update_icon(index)
 
         status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
-        status_frame.pack(side="bottom", fill="x")
+        status_frame.grid(row=3, column=0, sticky="ew")
         status_frame.pack_propagate(False)
         status = tk.Label(
             status_frame,
@@ -358,33 +398,66 @@ class StratagemApp:
                     if current_name == name:
                         self.update_icon(idx)
 
-        self.root.after(0, apply_icon)
+        self.run_in_ui(apply_icon)
 
     def register_hotkeys(self) -> None:
         if os.name != "nt":
             self.status_var.set("Hotkeys are supported only on Windows.")
             return
         try:
-            self.hotkeys = HotkeyManager()
+            self.hotkeys = HotkeyManager(self.on_hotkey_fired)
         except RuntimeError as exc:
             self.status_var.set(str(exc))
             return
 
+        hotkey_map: Dict[int, int] = {}
         for idx, keybind in enumerate(self.keybinds):
             vk = parse_key_code(keybind["key_code"])
             hotkey_id = 1000 + idx
-            try:
-                self.hotkeys.register(hotkey_id, vk, lambda i=idx: self.activate_stratagem(i))
-            except RuntimeError as exc:
-                self.status_var.set(str(exc))
+            self.hotkey_id_to_index[hotkey_id] = idx
+            hotkey_map[hotkey_id] = vk
 
-        self.root.after(25, self.poll_hotkeys)
+        self.hotkeys.start(hotkey_map)
+        if self.hotkeys.errors:
+            self.status_var.set(self.hotkeys.errors[0])
+
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def poll_hotkeys(self) -> None:
-        if self.hotkeys:
-            self.hotkeys.pump()
-        self.root.after(25, self.poll_hotkeys)
+    def register_local_bindings(self) -> None:
+        for keysym, index in LOCAL_KEYSYM_TO_INDEX.items():
+            self.root.bind(f"<KeyPress-{keysym}>", lambda _e, i=index: self.activate_stratagem(i))
+
+    def register_debug_key_capture(self) -> None:
+        self.root.bind_all("<KeyPress>", self.on_any_key)
+
+    def on_any_key(self, event: tk.Event) -> None:
+        keysym = getattr(event, "keysym", "")
+        keycode = getattr(event, "keycode", "")
+        char = getattr(event, "char", "")
+        self.status_var.set(f"Key: keysym={keysym} keycode={keycode} char={char}")
+
+    def on_hotkey_fired(self, hotkey_id: int) -> None:
+        index = self.hotkey_id_to_index.get(hotkey_id)
+        if index is None:
+            return
+        self.run_in_ui(lambda: self.activate_stratagem(index))
+
+    def run_in_ui(self, func: Callable[[], None]) -> None:
+        self.ui_queue.put(func)
+
+    def process_ui_queue(self) -> None:
+        while True:
+            try:
+                func = self.ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                if self.root.winfo_exists():
+                    func()
+            except Exception as exc:
+                self.status_var.set(f"UI update error: {exc}")
+        if self.root.winfo_exists():
+            self.root.after(30, self.process_ui_queue)
 
     def activate_stratagem(self, index: int) -> None:
         name = self.equipped[index]
@@ -392,7 +465,8 @@ class StratagemApp:
         if not strat:
             self.status_var.set(f"Unknown stratagem: {name}")
             return
-        self.status_var.set(f"Activated: {name}")
+        sequence_text = " ".join(strat.sequence)
+        self.status_var.set(f"Activated: {name} ({sequence_text})")
         threading.Thread(target=self.send_sequence, args=(strat.sequence,), daemon=True).start()
 
     def send_sequence(self, sequence: List[str]) -> None:
@@ -400,19 +474,40 @@ class StratagemApp:
 
         if os.name != "nt":
             return
+
         user32 = ctypes.windll.user32
+        KEYEVENTF_SCANCODE = 0x0008
+        KEYEVENTF_KEYUP = 0x0002
+
+        class KEYBDINPUT(ctypes.Structure):
+            _fields_ = [
+                ("wVk", ctypes.c_ushort),
+                ("wScan", ctypes.c_ushort),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.c_void_p),
+            ]
+
+        class INPUT(ctypes.Structure):
+            _fields_ = [("type", ctypes.c_ulong), ("ki", KEYBDINPUT)]
+
+        def send_key(vk: int, flags: int) -> None:
+            scan = user32.MapVirtualKeyW(vk, 0)
+            inp = INPUT(1, KEYBDINPUT(vk, scan, flags | KEYEVENTF_SCANCODE, 0, None))
+            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+
         for entry in sequence:
             vk = KEY_VK.get(entry.upper())
             if not vk:
                 continue
-            user32.keybd_event(vk, 0, 0, 0)
+            send_key(vk, 0)
             time.sleep(0.02)
-            user32.keybd_event(vk, 0, 0x0002, 0)
+            send_key(vk, KEYEVENTF_KEYUP)
             time.sleep(0.04)
 
     def on_close(self) -> None:
         if self.hotkeys:
-            self.hotkeys.unregister_all()
+            self.hotkeys.stop()
         self.root.destroy()
 
 
