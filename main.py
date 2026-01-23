@@ -6,6 +6,7 @@ import queue
 import threading
 import time
 from dataclasses import dataclass
+import math
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -70,12 +71,17 @@ LOCAL_KEYSYM_TO_INDEX = {
 class Stratagem:
     name: str
     sequence: List[str]
+    category: str
 
 
 def load_stratagems() -> List[Stratagem]:
     with STRATAGEMS_FILE.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
-    return [Stratagem(entry["name"], entry["sequence"]) for entry in raw]
+    items: List[Stratagem] = []
+    for entry in raw:
+        category = entry.get("category", "general")
+        items.append(Stratagem(entry["name"], entry["sequence"], category))
+    return items
 
 
 def load_user_data() -> Dict[str, List]:
@@ -205,6 +211,7 @@ class StratagemApp:
 
         self.stratagems = load_stratagems()
         self.stratagem_map = {item.name: item for item in self.stratagems}
+        self.stratagem_category = {item.name: item.category for item in self.stratagems}
         self.stratagem_names = [item.name for item in self.stratagems]
 
         self.user_data = load_user_data()
@@ -493,6 +500,21 @@ class StratagemApp:
         )
         header.pack(pady=(16, 8))
 
+        search_frame = tk.Frame(picker, bg=DARK_BG)
+        search_frame.pack(fill="x", padx=16, pady=(0, 8))
+        search_label = tk.Label(
+            search_frame,
+            text="Search:",
+            bg=DARK_BG,
+            fg=MUTED_FG,
+            font=("Segoe UI", 9),
+        )
+        search_label.pack(side="left", padx=(0, 6))
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, width=28)
+        search_entry.pack(side="left")
+        search_entry.focus_set()
+
         container = tk.Frame(picker, bg=DARK_BG)
         container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
@@ -511,39 +533,78 @@ class StratagemApp:
         canvas.bind_all("<Button-4>", lambda _e: canvas.yview_scroll(-3, "units"))
         canvas.bind_all("<Button-5>", lambda _e: canvas.yview_scroll(3, "units"))
 
-        columns = 6
+        columns = 4
         size = 52
-        for idx, name in enumerate(self.stratagem_names):
-            row = idx // columns
-            col = idx % columns
-            cell = tk.Frame(scroll_frame, bg=CARD_BG, padx=6, pady=6)
-            cell.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
+        category_order = ["Offensive", "Supply", "Defensive", "General"]
+        category_labels = {
+            "Offensive": "Offensive",
+            "Supply": "Supply",
+            "Defensive": "Defensive",
+            "General": "General",
+        }
 
-            icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
-            icon.pack()
-            photo = self.get_icon_photo(name, size)
-            if photo:
-                icon.configure(image=photo)
-                icon.image = photo
-            else:
-                icon.configure(text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7))
+        def rebuild_grid(*_args: object) -> None:
+            for child in scroll_frame.winfo_children():
+                child.destroy()
 
-            label = tk.Label(
-                cell,
-                text=name,
-                bg=CARD_BG,
-                fg=TEXT_FG,
-                font=("Segoe UI", 8),
-                wraplength=110,
-                justify="center",
-            )
-            label.pack(pady=(4, 0))
+            filter_text = search_var.get().strip().lower()
+            names = self.stratagem_names
+            if filter_text:
+                names = [name for name in names if filter_text in name.lower()]
 
-            for widget in (cell, icon, label):
-                widget.bind(
-                    "<Button-1>",
-                    lambda _e, n=name: self._select_stratagem_from_picker(picker, index, n),
+            row_cursor = 0
+            for category in category_order:
+                cat_names = [name for name in names if self.stratagem_category.get(name) == category]
+                if not cat_names:
+                    continue
+
+                header = tk.Label(
+                    scroll_frame,
+                    text=category_labels.get(category, category.title()),
+                    bg=DARK_BG,
+                    fg=MUTED_FG,
+                    font=("Segoe UI", 10, "bold"),
+                    anchor="w",
                 )
+                header.grid(row=row_cursor, column=0, columnspan=columns, sticky="w", padx=6, pady=(10, 4))
+                row_cursor += 1
+
+                for idx, name in enumerate(cat_names):
+                    row = row_cursor + idx // columns
+                    col = idx % columns
+                    cell = tk.Frame(scroll_frame, bg=CARD_BG, padx=6, pady=6)
+                    cell.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
+
+                    icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
+                    icon.pack()
+                    photo = self.get_icon_photo(name, size)
+                    if photo:
+                        icon.configure(image=photo)
+                        icon.image = photo
+                    else:
+                        icon.configure(text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7))
+
+                    label = tk.Label(
+                        cell,
+                        text=name,
+                        bg=CARD_BG,
+                        fg=TEXT_FG,
+                        font=("Segoe UI", 8),
+                        wraplength=110,
+                        justify="center",
+                    )
+                    label.pack(pady=(4, 0))
+
+                    for widget in (cell, icon, label):
+                        widget.bind(
+                            "<Button-1>",
+                            lambda _e, n=name: self._select_stratagem_from_picker(picker, index, n),
+                        )
+
+                row_cursor += int(math.ceil(len(cat_names) / columns))
+
+        search_var.trace_add("write", lambda *_a: rebuild_grid())
+        rebuild_grid()
 
     def _select_stratagem_from_picker(self, picker: tk.Toplevel, index: int, name: str) -> None:
         self.set_stratagem(index, name)
