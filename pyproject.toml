@@ -7,4 +7,5 @@ dependencies = [
     "cairosvg",
     "pillow",
     "pycairo>=1.29.0",
+    "pyinstaller>=6.18.0",
 ]

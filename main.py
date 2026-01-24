@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
+
+# https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg
 
 SVG_ERROR = None
 try:
@@ -26,10 +29,13 @@ except Exception as exc:
 
 APP_TITLE = "Stratagem Hotkeys"
 BASE_DIR = Path(__file__).resolve().parent
-DATA_FILE = BASE_DIR / "user_data.json"
-STRATAGEMS_FILE = BASE_DIR / "stratagems.json"
-ICON_DIR = BASE_DIR / "StratagemIcons"
-ICON_CACHE_DIR = BASE_DIR / ".icon_cache"
+RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", BASE_DIR))
+USER_DATA_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "pystrat"
+USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_FILE = USER_DATA_DIR / "user_data.json"
+STRATAGEMS_FILE = RESOURCE_DIR / "stratagems.json"
+ICON_DIR = RESOURCE_DIR / "StratagemIcons"
+ICON_CACHE_DIR = USER_DATA_DIR / ".icon_cache"
 
 DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
@@ -207,6 +213,9 @@ class StratagemApp:
         self.root = root
         self.root.title(APP_TITLE)
         self.root.configure(bg=DARK_BG)
+        icon_path = RESOURCE_DIR / "app.ico"
+        if icon_path.exists():
+            self.root.iconbitmap(default=str(icon_path))
         self.root.geometry("820x540")
 
         self.stratagems = load_stratagems()
