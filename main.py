@@ -98,6 +98,7 @@ def load_user_data() -> Dict[str, List]:
             "key_delay_ms": 40,
             "presets": {},
             "active_preset": "",
+            "input_keys": "wasd",
         }
     with DATA_FILE.open("r", encoding="utf-8") as handle:
         return json.load(handle)
@@ -110,6 +111,7 @@ def save_user_data(
     key_delay_ms: Optional[int] = None,
     presets: Optional[Dict[str, List[str]]] = None,
     active_preset: Optional[str] = None,
+    input_keys: Optional[str] = None,
 ) -> None:
     payload = {"equipped_stratagems": equipped, "keybinds": keybinds}
     if input_mode:
@@ -120,6 +122,8 @@ def save_user_data(
         payload["presets"] = presets
     if active_preset is not None:
         payload["active_preset"] = active_preset
+    if input_keys is not None:
+        payload["input_keys"] = input_keys
     with DATA_FILE.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=4)
 
@@ -230,8 +234,11 @@ class StratagemApp:
         self.key_delay_ms = int(self.user_data.get("key_delay_ms", 40))
         self.presets: Dict[str, List[str]] = self.user_data.get("presets", {})
         self.active_preset = self.user_data.get("active_preset", "")
+        self.input_keys = self.user_data.get("input_keys", "wasd")
         if self.input_mode not in INPUT_MODE_OPTIONS:
             self.input_mode = "scancode"
+        if self.input_keys not in ("wasd", "arrows"):
+            self.input_keys = "wasd"
 
         desired_keybinds = [
             {"key_code": "0x67", "letter": "NumPad7"},
@@ -270,6 +277,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
@@ -359,6 +367,27 @@ class StratagemApp:
         )
         delay_spin.bind("<FocusOut>", lambda _e: self.on_key_delay_change())
         delay_spin.pack(side="left")
+
+        keymode_frame = tk.Frame(self.root, bg=DARK_BG)
+        keymode_frame.grid(row=1, column=0, sticky="w", padx=180, pady=(0, 12))
+        keymode_label = tk.Label(
+            keymode_frame,
+            text="Input Keys:",
+            bg=DARK_BG,
+            fg=MUTED_FG,
+            font=("Segoe UI", 9),
+        )
+        keymode_label.pack(side="left", padx=(0, 6))
+        self.input_keys_var = tk.StringVar(value="WASD" if self.input_keys == "wasd" else "Arrows")
+        keymode_combo = ttk.Combobox(
+            keymode_frame,
+            textvariable=self.input_keys_var,
+            values=["WASD", "Arrows"],
+            state="readonly",
+            width=8,
+        )
+        keymode_combo.pack(side="left")
+        keymode_combo.bind("<<ComboboxSelected>>", self.on_input_keys_change)
 
         preset_frame = tk.Frame(self.root, bg=DARK_BG)
         preset_frame.grid(row=0, column=0, sticky="e", padx=20, pady=(18, 6))
@@ -496,6 +525,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
     def open_icon_picker(self, index: int) -> None:
@@ -664,6 +694,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
     def on_key_delay_change(self) -> None:
@@ -681,6 +712,20 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
+        )
+
+    def on_input_keys_change(self, _event: tk.Event) -> None:
+        label = self.input_keys_var.get().strip().lower()
+        self.input_keys = "arrows" if "arrow" in label else "wasd"
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+            self.input_keys,
         )
 
     def get_preset_names(self) -> List[str]:
@@ -705,6 +750,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
     def save_preset_current(self) -> None:
@@ -719,6 +765,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
     def delete_preset(self) -> None:
@@ -739,6 +786,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
     def on_preset_select(self, _event: tk.Event) -> None:
@@ -758,6 +806,7 @@ class StratagemApp:
             self.key_delay_ms,
             self.presets,
             self.active_preset,
+            self.input_keys,
         )
 
     def update_icon(self, index: int) -> None:
@@ -895,6 +944,10 @@ class StratagemApp:
         KEYEVENTF_KEYUP = 0x0002
         KEYEVENTF_UNICODE = 0x0004
         VK_CONTROL = 0x11
+        VK_UP = 0x26
+        VK_LEFT = 0x25
+        VK_DOWN = 0x28
+        VK_RIGHT = 0x27
 
         class KEYBDINPUT(ctypes.Structure):
             _fields_ = [
@@ -952,12 +1005,18 @@ class StratagemApp:
 
         send_ctrl(0)
         time.sleep(0.02)
+        arrow_vk = {"W": VK_UP, "A": VK_LEFT, "S": VK_DOWN, "D": VK_RIGHT}
+        use_unicode = self.input_mode == "unicode" and self.input_keys == "wasd"
+
         for entry in sequence:
             key_name = entry.upper()
-            vk = KEY_VK.get(key_name)
+            if self.input_keys == "arrows":
+                vk = arrow_vk.get(key_name)
+            else:
+                vk = KEY_VK.get(key_name)
             if not vk:
                 continue
-            if self.input_mode == "unicode":
+            if use_unicode:
                 code = ord(key_name.lower())
                 send_key(code, 0)
                 time.sleep(0.02)
