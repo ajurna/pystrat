@@ -380,10 +380,25 @@ class StratagemApp:
         )
         self.preset_combo.pack(side="left", padx=(0, 6))
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_select)
-        preset_save = ttk.Button(preset_frame, text="Save", command=self.save_preset_prompt)
-        preset_save.pack(side="left", padx=(0, 4))
-        preset_delete = ttk.Button(preset_frame, text="Delete", command=self.delete_preset)
-        preset_delete.pack(side="left")
+        preset_save = ttk.Button(preset_frame, text="Save", command=self.save_preset_current)
+        preset_save.pack(side="left")
+        preset_menu_button = tk.Menubutton(
+            preset_frame,
+            text="▾",
+            bg=CARD_BG,
+            fg=TEXT_FG,
+            activebackground=CARD_BG,
+            activeforeground=TEXT_FG,
+            relief="ridge",
+            font=("Segoe UI Black", 12, "bold"),
+            width=2,
+        )
+        preset_menu = tk.Menu(preset_menu_button, tearoff=0)
+        preset_menu.add_command(label="Save As...", command=self.save_preset_prompt)
+        preset_menu.add_separator()
+        preset_menu.add_command(label="Delete", command=self.delete_preset)
+        preset_menu_button.configure(menu=preset_menu)
+        preset_menu_button.pack(side="left", padx=(2, 0))
 
         grid_frame = tk.Frame(self.root, bg=DARK_BG)
         grid_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
@@ -431,7 +446,7 @@ class StratagemApp:
                 text=self.sequence_for(self.equipped[index]),
                 bg=CARD_BG,
                 fg=MUTED_FG,
-                font=("Segoe UI Black", 16, "bold"),
+                font=("Segoe UI Black", 14, "bold"),
             )
             seq_label.grid(row=2, column=1, sticky="w")
 
@@ -683,6 +698,20 @@ class StratagemApp:
         self.presets[name] = list(self.equipped)
         self.active_preset = name
         self.refresh_preset_combo()
+        save_user_data(
+            self.equipped,
+            self.keybinds,
+            self.input_mode,
+            self.key_delay_ms,
+            self.presets,
+            self.active_preset,
+        )
+
+    def save_preset_current(self) -> None:
+        if not self.active_preset:
+            self.save_preset_prompt()
+            return
+        self.presets[self.active_preset] = list(self.equipped)
         save_user_data(
             self.equipped,
             self.keybinds,
