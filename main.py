@@ -41,6 +41,8 @@ DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
 TEXT_FG = "#f1f1f3"
 MUTED_FG = "#a2a2ad"
+SCROLLBAR_BG = "#2a2a33"
+SCROLLBAR_ACTIVE_BG = "#343441"
 
 KEY_VK = {
     "W": 0x57,
@@ -573,7 +575,12 @@ class StratagemApp:
         container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
         canvas = tk.Canvas(container, bg=DARK_BG, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollbar = ttk.Scrollbar(
+            container,
+            orient="vertical",
+            command=canvas.yview,
+            style="Strat.Vertical.TScrollbar",
+        )
         scroll_frame = tk.Frame(canvas, bg=DARK_BG)
         scroll_frame.bind(
             "<Configure>",
@@ -1041,6 +1048,21 @@ def main() -> None:
         style.theme_use("clam")
     except Exception:
         pass
+    style.configure(
+        "Strat.Vertical.TScrollbar",
+        troughcolor=DARK_BG,
+        background=SCROLLBAR_BG,
+        bordercolor=DARK_BG,
+        lightcolor=SCROLLBAR_BG,
+        darkcolor=SCROLLBAR_BG,
+        arrowcolor=MUTED_FG,
+        gripcount=0,
+        width=10,
+    )
+    style.map(
+        "Strat.Vertical.TScrollbar",
+        background=[("active", SCROLLBAR_ACTIVE_BG), ("pressed", SCROLLBAR_ACTIVE_BG)],
+    )
     app = StratagemApp(root)
     root.mainloop()
 
