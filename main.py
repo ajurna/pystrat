@@ -56,12 +56,6 @@ WM_QUIT = 0x0012
 MOD_NOREPEAT = 0x4000
 DEBUG_KEY_CAPTURE = False
 
-INPUT_MODE_OPTIONS = {
-    "scancode": "Scancode",
-    "vk": "Virtual Key",
-    "unicode": "Unicode",
-}
-
 LOCAL_KEYSYM_TO_INDEX = {
     "KP_7": 0,
     "KP_8": 1,
@@ -109,15 +103,12 @@ def load_user_data() -> Dict[str, List]:
 def save_user_data(
     equipped: List[str],
     keybinds: List[Dict[str, str]],
-    input_mode: Optional[str] = None,
     key_delay_ms: Optional[int] = None,
     presets: Optional[Dict[str, List[str]]] = None,
     active_preset: Optional[str] = None,
     input_keys: Optional[str] = None,
 ) -> None:
     payload = {"equipped_stratagems": equipped, "keybinds": keybinds}
-    if input_mode:
-        payload["input_mode"] = input_mode
     if key_delay_ms is not None:
         payload["key_delay_ms"] = key_delay_ms
     if presets is not None:
@@ -232,13 +223,11 @@ class StratagemApp:
         self.user_data = load_user_data()
         self.keybinds = self.user_data.get("keybinds", [])
         self.equipped = self.user_data.get("equipped_stratagems", [])
-        self.input_mode = self.user_data.get("input_mode", "scancode")
         self.key_delay_ms = int(self.user_data.get("key_delay_ms", 40))
         self.presets: Dict[str, List[str]] = self.user_data.get("presets", {})
         self.active_preset = self.user_data.get("active_preset", "")
         self.input_keys = self.user_data.get("input_keys", "wasd")
-        if self.input_mode not in INPUT_MODE_OPTIONS:
-            self.input_mode = "scancode"
+        self.input_mode = "vk"
         if self.input_keys not in ("wasd", "arrows"):
             self.input_keys = "wasd"
 
@@ -275,7 +264,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -324,28 +312,6 @@ class StratagemApp:
         )
         subtitle.grid(row=1, column=0, sticky="n", pady=(0, 12))
 
-        mode_frame = tk.Frame(self.root, bg=DARK_BG)
-        mode_frame.grid(row=1, column=0, sticky="e", padx=20, pady=(0, 12))
-        mode_label = tk.Label(
-            mode_frame,
-            text="Input Mode:",
-            bg=DARK_BG,
-            fg=MUTED_FG,
-            font=("Segoe UI", 9),
-        )
-        mode_label.pack(side="left", padx=(0, 6))
-
-        self.input_mode_var = tk.StringVar(value=INPUT_MODE_OPTIONS[self.input_mode])
-        mode_combo = ttk.Combobox(
-            mode_frame,
-            textvariable=self.input_mode_var,
-            values=list(INPUT_MODE_OPTIONS.values()),
-            state="readonly",
-            width=12,
-        )
-        mode_combo.pack(side="left")
-        mode_combo.bind("<<ComboboxSelected>>", self.on_input_mode_change)
-
         delay_frame = tk.Frame(self.root, bg=DARK_BG)
         delay_frame.grid(row=1, column=0, sticky="w", padx=20, pady=(0, 12))
         delay_label = tk.Label(
@@ -370,26 +336,26 @@ class StratagemApp:
         delay_spin.bind("<FocusOut>", lambda _e: self.on_key_delay_change())
         delay_spin.pack(side="left")
 
-        keymode_frame = tk.Frame(self.root, bg=DARK_BG)
-        keymode_frame.grid(row=1, column=0, sticky="w", padx=180, pady=(0, 12))
-        keymode_label = tk.Label(
-            keymode_frame,
+        key_mode_frame = tk.Frame(self.root, bg=DARK_BG)
+        key_mode_frame.grid(row=1, column=0, sticky="w", padx=180, pady=(0, 12))
+        key_mode_label = tk.Label(
+            key_mode_frame,
             text="Input Keys:",
             bg=DARK_BG,
             fg=MUTED_FG,
             font=("Segoe UI", 9),
         )
-        keymode_label.pack(side="left", padx=(0, 6))
+        key_mode_label.pack(side="left", padx=(0, 6))
         self.input_keys_var = tk.StringVar(value="WASD" if self.input_keys == "wasd" else "Arrows")
-        keymode_combo = ttk.Combobox(
-            keymode_frame,
+        key_mode_combo = ttk.Combobox(
+            key_mode_frame,
             textvariable=self.input_keys_var,
             values=["WASD", "Arrows"],
             state="readonly",
             width=8,
         )
-        keymode_combo.pack(side="left")
-        keymode_combo.bind("<<ComboboxSelected>>", self.on_input_keys_change)
+        key_mode_combo.pack(side="left")
+        key_mode_combo.bind("<<ComboboxSelected>>", self.on_input_keys_change)
 
         preset_frame = tk.Frame(self.root, bg=DARK_BG)
         preset_frame.grid(row=0, column=0, sticky="e", padx=20, pady=(18, 6))
@@ -523,7 +489,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -690,20 +655,6 @@ class StratagemApp:
         except Exception:
             return None
 
-    def on_input_mode_change(self, _event: tk.Event) -> None:
-        label = self.input_mode_var.get()
-        reverse_map = {value: key for key, value in INPUT_MODE_OPTIONS.items()}
-        self.input_mode = reverse_map.get(label, "scancode")
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.input_mode,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
-
     def on_key_delay_change(self) -> None:
         try:
             value = int(self.key_delay_var.get())
@@ -715,7 +666,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -728,7 +678,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -753,7 +702,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -768,7 +716,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -789,7 +736,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -809,7 +755,6 @@ class StratagemApp:
         save_user_data(
             self.equipped,
             self.keybinds,
-            self.input_mode,
             self.key_delay_ms,
             self.presets,
             self.active_preset,
@@ -1013,7 +958,6 @@ class StratagemApp:
         send_ctrl(0)
         time.sleep(0.02)
         arrow_vk = {"W": VK_UP, "A": VK_LEFT, "S": VK_DOWN, "D": VK_RIGHT}
-        use_unicode = self.input_mode == "unicode" and self.input_keys == "wasd"
 
         for entry in sequence:
             key_name = entry.upper()
@@ -1023,15 +967,9 @@ class StratagemApp:
                 vk = KEY_VK.get(key_name)
             if not vk:
                 continue
-            if use_unicode:
-                code = ord(key_name.lower())
-                send_key(code, 0)
-                time.sleep(0.02)
-                send_key(code, KEYEVENTF_KEYUP)
-            else:
-                send_key(vk, 0)
-                time.sleep(0.02)
-                send_key(vk, KEYEVENTF_KEYUP)
+            send_key(vk, 0)
+            time.sleep(0.02)
+            send_key(vk, KEYEVENTF_KEYUP)
             time.sleep(self.key_delay_ms / 1000.0)
         send_ctrl(KEYEVENTF_KEYUP)
 
@@ -1046,7 +984,7 @@ def main() -> None:
     style = ttk.Style()
     try:
         style.theme_use("clam")
-    except Exception:
+    except tk.TclError:
         pass
     style.configure(
         "Strat.Vertical.TScrollbar",
