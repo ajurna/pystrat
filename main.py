@@ -76,6 +76,53 @@ class Stratagem:
     category: str
 
 
+@dataclass
+class UserData:
+    equipped_stratagems: List[str]
+    keybinds: List[Dict[str, str]]
+    key_delay_ms: int
+    presets: Dict[str, List[str]]
+    active_preset: str
+    input_keys: str
+
+    @classmethod
+    def load(cls, path: Path) -> "UserData":
+        if not path.exists():
+            return cls(
+                equipped_stratagems=[],
+                keybinds=[],
+                key_delay_ms=40,
+                presets={},
+                active_preset="",
+                input_keys="wasd",
+            )
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        input_keys = raw.get("input_keys", "wasd")
+        if input_keys not in ("wasd", "arrows"):
+            input_keys = "wasd"
+        return cls(
+            equipped_stratagems=raw.get("equipped_stratagems", []),
+            keybinds=raw.get("keybinds", []),
+            key_delay_ms=int(raw.get("key_delay_ms", 40)),
+            presets=raw.get("presets", {}),
+            active_preset=raw.get("active_preset", ""),
+            input_keys=input_keys,
+        )
+
+    def to_payload(self) -> Dict[str, object]:
+        return {
+            "equipped_stratagems": self.equipped_stratagems,
+            "keybinds": self.keybinds,
+            "key_delay_ms": self.key_delay_ms,
+            "presets": self.presets,
+            "active_preset": self.active_preset,
+            "input_keys": self.input_keys,
+        }
+
+    def save(self, path: Path) -> None:
+        path.write_text(json.dumps(self.to_payload(), indent=4), encoding="utf-8")
+
+
 def load_stratagems() -> List[Stratagem]:
     with STRATAGEMS_FILE.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
@@ -84,41 +131,6 @@ def load_stratagems() -> List[Stratagem]:
         category = entry.get("category", "general")
         items.append(Stratagem(entry["name"], entry["sequence"], category))
     return items
-
-
-def load_user_data() -> Dict[str, List]:
-    if not DATA_FILE.exists():
-        return {
-            "equipped_stratagems": [],
-            "keybinds": [],
-            "key_delay_ms": 40,
-            "presets": {},
-            "active_preset": "",
-            "input_keys": "wasd",
-        }
-    with DATA_FILE.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
-def save_user_data(
-    equipped: List[str],
-    keybinds: List[Dict[str, str]],
-    key_delay_ms: Optional[int] = None,
-    presets: Optional[Dict[str, List[str]]] = None,
-    active_preset: Optional[str] = None,
-    input_keys: Optional[str] = None,
-) -> None:
-    payload = {"equipped_stratagems": equipped, "keybinds": keybinds}
-    if key_delay_ms is not None:
-        payload["key_delay_ms"] = key_delay_ms
-    if presets is not None:
-        payload["presets"] = presets
-    if active_preset is not None:
-        payload["active_preset"] = active_preset
-    if input_keys is not None:
-        payload["input_keys"] = input_keys
-    with DATA_FILE.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=4)
 
 
 def safe_cache_name(name: str, size: int) -> str:
@@ -220,16 +232,13 @@ class StratagemApp:
         self.stratagem_category = {item.name: item.category for item in self.stratagems}
         self.stratagem_names = [item.name for item in self.stratagems]
 
-        self.user_data = load_user_data()
-        self.keybinds = self.user_data.get("keybinds", [])
-        self.equipped = self.user_data.get("equipped_stratagems", [])
-        self.key_delay_ms = int(self.user_data.get("key_delay_ms", 40))
-        self.presets: Dict[str, List[str]] = self.user_data.get("presets", {})
-        self.active_preset = self.user_data.get("active_preset", "")
-        self.input_keys = self.user_data.get("input_keys", "wasd")
-        self.input_mode = "vk"
-        if self.input_keys not in ("wasd", "arrows"):
-            self.input_keys = "wasd"
+        self.user_data = UserData.load(DATA_FILE)
+        self.keybinds = self.user_data.keybinds
+        self.equipped = self.user_data.equipped_stratagems
+        self.key_delay_ms = self.user_data.key_delay_ms
+        self.presets = self.user_data.presets
+        self.active_preset = self.user_data.active_preset
+        self.input_keys = self.user_data.input_keys
 
         desired_keybinds = [
             {"key_code": "0x67", "letter": "NumPad7"},
@@ -261,14 +270,7 @@ class StratagemApp:
             default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
         self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
@@ -473,6 +475,15 @@ class StratagemApp:
                 message = f"SVG support disabled: {SVG_ERROR}"
             self.status_var.set(message)
 
+    def persist_user_data(self) -> None:
+        self.user_data.equipped_stratagems = list(self.equipped)
+        self.user_data.keybinds = list(self.keybinds)
+        self.user_data.key_delay_ms = self.key_delay_ms
+        self.user_data.presets = dict(self.presets)
+        self.user_data.active_preset = self.active_preset
+        self.user_data.input_keys = self.input_keys
+        self.user_data.save(DATA_FILE)
+
     def sequence_for(self, name: str) -> str:
         strat = self.stratagem_map.get(name)
         if not strat:
@@ -486,14 +497,7 @@ class StratagemApp:
         self.sequence_labels[index].configure(text=self.sequence_for(name))
         self.name_labels[index].configure(text=name)
         self.update_icon(index)
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def open_icon_picker(self, index: int) -> None:
         picker = tk.Toplevel(self.root)
@@ -663,26 +667,12 @@ class StratagemApp:
         value = max(10, min(300, value))
         self.key_delay_ms = value
         self.key_delay_var.set(value)
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def on_input_keys_change(self, _event: tk.Event) -> None:
         label = self.input_keys_var.get().strip().lower()
         self.input_keys = "arrows" if "arrow" in label else "wasd"
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def get_preset_names(self) -> List[str]:
         return sorted(self.presets.keys())
@@ -699,28 +689,14 @@ class StratagemApp:
         self.presets[name] = list(self.equipped)
         self.active_preset = name
         self.refresh_preset_combo()
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def save_preset_current(self) -> None:
         if not self.active_preset:
             self.save_preset_prompt()
             return
         self.presets[self.active_preset] = list(self.equipped)
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def delete_preset(self) -> None:
         name = self.preset_var.get()
@@ -733,14 +709,7 @@ class StratagemApp:
             self.active_preset = ""
             self.preset_var.set("")
         self.refresh_preset_combo()
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def on_preset_select(self, _event: tk.Event) -> None:
         name = self.preset_var.get()
@@ -752,14 +721,7 @@ class StratagemApp:
         self.active_preset = name
         for idx, strat_name in enumerate(loadout[: len(self.equipped)]):
             self.set_stratagem(idx, strat_name)
-        save_user_data(
-            self.equipped,
-            self.keybinds,
-            self.key_delay_ms,
-            self.presets,
-            self.active_preset,
-            self.input_keys,
-        )
+        self.persist_user_data()
 
     def update_icon(self, index: int) -> None:
         name = self.equipped[index]
@@ -894,7 +856,6 @@ class StratagemApp:
         user32 = ctypes.windll.user32
         KEYEVENTF_SCANCODE = 0x0008
         KEYEVENTF_KEYUP = 0x0002
-        KEYEVENTF_UNICODE = 0x0004
         VK_CONTROL = 0x11
         VK_UP = 0x26
         VK_LEFT = 0x25
@@ -941,13 +902,7 @@ class StratagemApp:
         user32.SendInput.restype = ctypes.c_uint
 
         def send_key(vk: int, flags: int) -> None:
-            if self.input_mode == "unicode":
-                inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, vk, flags | KEYEVENTF_UNICODE, 0, None)))
-            elif self.input_mode == "vk":
-                inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(vk, 0, flags, 0, None)))
-            else:
-                scan = user32.MapVirtualKeyW(vk, 0)
-                inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)))
+            inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(vk, 0, flags, 0, None)))
             user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
         def send_ctrl(flags: int) -> None:
