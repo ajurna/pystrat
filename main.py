@@ -405,7 +405,7 @@ class StratagemApp:
         columns = 3
         rows = 3
         for col in range(columns):
-            grid_frame.grid_columnconfigure(col, weight=1)
+            grid_frame.grid_columnconfigure(col, weight=1, uniform="strat_cols")
         for row in range(rows):
             grid_frame.grid_rowconfigure(row, weight=1)
 
