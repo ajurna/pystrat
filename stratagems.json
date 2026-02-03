@@ -82,6 +82,11 @@
   {"name": "Guard Dog ARC-3", "sequence": ["S", "W", "A", "W", "D", "A"], "category": "Supply"},
   {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply"},
   {"name": "Defoliation Tool", "sequence": ["S", "A", "D", "D", "S"], "category": "Supply"},
+  { "name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply" },
+  { "name": "EAT-411", "sequence": ["S", "S", "A", "W", "S"], "category": "Supply" },
+  { "name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply" },
+  { "name": "CQC-20", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply" },
+  { "name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "S", "W", "S", "W"], "category": "Supply" },
 
   {"name": "Eagle Rearm", "sequence": ["W", "W", "A", "W", "D"], "category": "General"},
 
@@ -101,4 +106,5 @@
   {"name": "SSSD Delivery", "sequence": ["S", "S", "S", "W", "W"], "category": "General"},
   {"name": "Cargo Container", "sequence": ["W", "W", "S", "S", "D", "S"], "category": "General"},
   {"name": "Call In Super Destroyer", "sequence": ["W", "W", "S", "S", "A", "D", "A", "D"], "category": "General"}
+
 ]
