@@ -11,6 +11,8 @@ def main() -> None:
         "PyInstaller",
         "--onefile",
         "--windowed",
+        "--name",
+        "pystrat",
         "--icon",
         "app.ico",
         "--add-data",
