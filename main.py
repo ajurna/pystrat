@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import queue
@@ -37,7 +38,6 @@ USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATA_FILE = USER_DATA_DIR / "user_data.json"
 STRATAGEMS_FILE = RESOURCE_DIR / "stratagems.json"
 ICON_DIR = RESOURCE_DIR / "StratagemIcons"
-ICON_CACHE_DIR = USER_DATA_DIR / ".icon_cache"
 
 DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
@@ -45,7 +45,6 @@ TEXT_FG = "#f1f1f3"
 MUTED_FG = "#a2a2ad"
 SCROLLBAR_BG = "#2a2a33"
 SCROLLBAR_ACTIVE_BG = "#343441"
-ICON_RENDER_TAG = "dark_bg"
 
 KEY_VK = {
     "W": 0x57,
@@ -136,30 +135,19 @@ def load_stratagems() -> List[Stratagem]:
     return items
 
 
-def safe_cache_name(name: str, size: int, tag: str = "") -> str:
-    safe = "".join(ch if ch.isalnum() else "_" for ch in name)
-    suffix = f"_{tag}" if tag else ""
-    return f"{safe}_{size}{suffix}.png"
-
-
-def render_svg_to_png(svg_path: Path, size: int) -> Optional[Path]:
+def render_svg_to_png_bytes(svg_path: Path, size: int) -> Optional[bytes]:
     if not SVG_AVAILABLE:
         return None
-    ICON_CACHE_DIR.mkdir(exist_ok=True)
-    cache_path = ICON_CACHE_DIR / safe_cache_name(svg_path.stem, size, ICON_RENDER_TAG)
-    if not cache_path.exists() or cache_path.stat().st_mtime < svg_path.stat().st_mtime:
-        drawing = svg2rlg(str(svg_path))
-        if drawing is None:
-            return None
-        width = drawing.width or 1
-        height = drawing.height or 1
-        scale = size / max(width, height)
-        drawing.scale(scale, scale)
-        drawing.width = width * scale
-        drawing.height = height * scale
-        png_bytes = renderPM.drawToString(drawing, fmt="PNG", bg=0x0F0F12)
-        cache_path.write_bytes(png_bytes)
-    return cache_path
+    drawing = svg2rlg(str(svg_path))
+    if drawing is None:
+        return None
+    width = drawing.width or 1
+    height = drawing.height or 1
+    scale = size / max(width, height)
+    drawing.scale(scale, scale)
+    drawing.width = width * scale
+    drawing.height = height * scale
+    return renderPM.drawToString(drawing, fmt="PNG", bg=0x0F0F12)
 
 
 def parse_key_code(code: str) -> int:
@@ -281,7 +269,7 @@ class StratagemApp:
         self.equipped = self.equipped[: len(self.keybinds)]
         self.persist_user_data()
 
-        self.icon_cache: Dict[Tuple[str, int], Optional["ImageTk.PhotoImage"]] = {}
+        self.icon_cache: Dict[Tuple[str, int], "ImageTk.PhotoImage"] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
         self.sequence_labels: List[tk.Label] = []
         self.icon_labels: List[tk.Label] = []
@@ -651,17 +639,18 @@ class StratagemApp:
 
     def get_icon_photo(self, name: str, size: int) -> Optional["ImageTk.PhotoImage"]:
         cache_key = (name, size)
-        if cache_key in self.icon_cache and self.icon_cache[cache_key]:
-            return self.icon_cache[cache_key]
+        cached = self.icon_cache.get(cache_key)
+        if cached:
+            return cached
 
         svg_path = ICON_DIR / f"{name}.svg"
         if not svg_path.exists() or not SVG_AVAILABLE:
             return None
         try:
-            cache_path = render_svg_to_png(svg_path, size)
-            if not cache_path or not cache_path.exists():
+            png_bytes = render_svg_to_png_bytes(svg_path, size)
+            if not png_bytes:
                 return None
-            image = Image.open(cache_path).convert("RGBA")
+            image = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
             photo = ImageTk.PhotoImage(image)
             self.icon_cache[cache_key] = photo
             return photo
@@ -738,10 +727,10 @@ class StratagemApp:
         size = 56
         cache_key = (name, size)
 
-        if cache_key in self.icon_cache and self.icon_cache[cache_key]:
-            photo = self.icon_cache[cache_key]
-            self.icon_labels[index].configure(image=photo, text="")
-            self.icon_labels[index].image = photo
+        cached = self.icon_cache.get(cache_key)
+        if cached:
+            self.icon_labels[index].configure(image=cached, text="")
+            self.icon_labels[index].image = cached
             return
 
         self.icon_labels[index].configure(image="", text="Loading...", fg=MUTED_FG, font=("Segoe UI", 8))
@@ -756,34 +745,34 @@ class StratagemApp:
         self.icon_jobs.add(cache_key)
         threading.Thread(
             target=self.render_icon_async,
-            args=(name, size, svg_path),
+            args=(index, cache_key, size, svg_path),
             daemon=True,
         ).start()
 
-    def render_icon_async(self, name: str, size: int, svg_path: Path) -> None:
-        cache_key = (name, size)
-        cache_path: Optional[Path] = None
+    def render_icon_async(self, index: int, cache_key: Tuple[str, int], size: int, svg_path: Path) -> None:
+        png_bytes: Optional[bytes] = None
         error_message: Optional[str] = None
         try:
-            cache_path = render_svg_to_png(svg_path, size)
+            png_bytes = render_svg_to_png_bytes(svg_path, size)
         except Exception as exc:
             error_message = f"Icon render failed: {exc}"
-            cache_path = None
+            png_bytes = None
 
         def apply_icon() -> None:
             try:
-                if cache_path and cache_path.exists():
-                    image = Image.open(cache_path).convert("RGBA")
+                if png_bytes:
+                    image = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
                     photo = ImageTk.PhotoImage(image)
                     self.icon_cache[cache_key] = photo
+                    self.icon_labels[index].configure(image=photo, text="")
+                    self.icon_labels[index].image = photo
                 elif error_message and error_message != self.last_icon_error:
                     self.last_icon_error = error_message
                     self.status_var.set(error_message)
+                else:
+                    self.icon_labels[index].configure(text="No Icon")
             finally:
                 self.icon_jobs.discard(cache_key)
-                for idx, current_name in enumerate(self.equipped):
-                    if current_name == name:
-                        self.update_icon(idx)
 
         self.run_in_ui(apply_icon)
 
