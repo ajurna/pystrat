@@ -19,16 +19,6 @@ def main() -> None:
         "StratagemIcons;StratagemIcons",
         "--add-data",
         "app.ico;.",
-        "--collect-binaries",
-        "cairo",
-        "--collect-binaries",
-        "cairocffi",
-        "--collect-binaries",
-        "cairosvg",
-        "--collect-submodules",
-        "cairosvg",
-        "--collect-submodules",
-        "cairocffi",
         "main.py",
     ]
     raise SystemExit(subprocess.call(args))
