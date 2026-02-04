@@ -19,7 +19,8 @@ from tkinter import messagebox, simpledialog, ttk
 
 SVG_ERROR = None
 try:
-    import cairosvg  # type: ignore
+    from reportlab.graphics import renderPM  # type: ignore
+    from svglib.svglib import svg2rlg  # type: ignore
     from PIL import Image, ImageTk  # type: ignore
 
     SVG_AVAILABLE = True
@@ -44,6 +45,7 @@ TEXT_FG = "#f1f1f3"
 MUTED_FG = "#a2a2ad"
 SCROLLBAR_BG = "#2a2a33"
 SCROLLBAR_ACTIVE_BG = "#343441"
+ICON_RENDER_TAG = "dark_bg"
 
 KEY_VK = {
     "W": 0x57,
@@ -134,23 +136,29 @@ def load_stratagems() -> List[Stratagem]:
     return items
 
 
-def safe_cache_name(name: str, size: int) -> str:
+def safe_cache_name(name: str, size: int, tag: str = "") -> str:
     safe = "".join(ch if ch.isalnum() else "_" for ch in name)
-    return f"{safe}_{size}.png"
+    suffix = f"_{tag}" if tag else ""
+    return f"{safe}_{size}{suffix}.png"
 
 
 def render_svg_to_png(svg_path: Path, size: int) -> Optional[Path]:
     if not SVG_AVAILABLE:
         return None
     ICON_CACHE_DIR.mkdir(exist_ok=True)
-    cache_path = ICON_CACHE_DIR / safe_cache_name(svg_path.stem, size)
+    cache_path = ICON_CACHE_DIR / safe_cache_name(svg_path.stem, size, ICON_RENDER_TAG)
     if not cache_path.exists() or cache_path.stat().st_mtime < svg_path.stat().st_mtime:
-        cairosvg.svg2png(
-            url=str(svg_path),
-            write_to=str(cache_path),
-            output_width=size,
-            output_height=size,
-        )
+        drawing = svg2rlg(str(svg_path))
+        if drawing is None:
+            return None
+        width = drawing.width or 1
+        height = drawing.height or 1
+        scale = size / max(width, height)
+        drawing.scale(scale, scale)
+        drawing.width = width * scale
+        drawing.height = height * scale
+        png_bytes = renderPM.drawToString(drawing, fmt="PNG", bg=0x0F0F12)
+        cache_path.write_bytes(png_bytes)
     return cache_path
 
 
@@ -471,7 +479,7 @@ class StratagemApp:
         status.pack(fill="both", expand=True)
 
         if not SVG_AVAILABLE:
-            message = "SVG support disabled. Install cairosvg and pillow to show icons."
+            message = "SVG support disabled. Install svglib, reportlab, and pillow to show icons."
             if SVG_ERROR:
                 message = f"SVG support disabled: {SVG_ERROR}"
             self.status_var.set(message)
