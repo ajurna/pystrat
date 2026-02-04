@@ -23,4 +23,4 @@ Compress-Archive -Path $exePath -DestinationPath $zipPath
 
 & git tag $tag
 & git push origin $tag
-& gh release create $tag $exePath $zipPath -t $tag -F "$PSScriptRoot\\RELEASE.md"
+& gh release create $tag $exePath $zipPath -t $tag -n (Get-Content -Raw "$PSScriptRoot\\RELEASE.md")
