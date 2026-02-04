@@ -281,6 +281,9 @@ class StratagemApp:
         self.hotkeys: Optional[HotkeyManager] = None
         self.hotkey_id_to_index: Dict[int, int] = {}
         self.ui_queue: "queue.Queue[Callable[[], None]]" = queue.Queue()
+        self.last_picker_scroll: Optional[float] = None
+        self.suppress_picker_scroll_capture = False
+        self.pending_picker_restore = False
         self.build_ui()
         self.register_hotkeys()
         self.register_local_bindings()
@@ -502,6 +505,8 @@ class StratagemApp:
         picker.configure(bg=DARK_BG)
         picker.transient(self.root)
         picker.grab_set()
+        self.suppress_picker_scroll_capture = True
+        self.pending_picker_restore = True
         picker.update_idletasks()
         width = 720
         height = 520
@@ -541,10 +546,14 @@ class StratagemApp:
         container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
         canvas = tk.Canvas(container, bg=DARK_BG, highlightthickness=0)
+        def on_scroll(*args: object) -> None:
+            canvas.yview(*args)
+            self._remember_picker_scroll(canvas)
+
         scrollbar = ttk.Scrollbar(
             container,
             orient="vertical",
-            command=canvas.yview,
+            command=on_scroll,
             style="Strat.Vertical.TScrollbar",
         )
         scroll_frame = tk.Frame(canvas, bg=DARK_BG)
@@ -553,12 +562,21 @@ class StratagemApp:
             lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
         )
         canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.configure(yscrollcommand=lambda *args: (scrollbar.set(*args), self._remember_picker_scroll(canvas)))
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
-        canvas.bind_all("<Button-4>", lambda _e: canvas.yview_scroll(-3, "units"))
-        canvas.bind_all("<Button-5>", lambda _e: canvas.yview_scroll(3, "units"))
+        canvas.bind_all(
+            "<MouseWheel>",
+            lambda e: (canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"), self._remember_picker_scroll(canvas)),
+        )
+        canvas.bind_all(
+            "<Button-4>",
+            lambda _e: (canvas.yview_scroll(-3, "units"), self._remember_picker_scroll(canvas)),
+        )
+        canvas.bind_all(
+            "<Button-5>",
+            lambda _e: (canvas.yview_scroll(3, "units"), self._remember_picker_scroll(canvas)),
+        )
 
         columns = 4
         size = 52
@@ -630,12 +648,40 @@ class StratagemApp:
 
                 row_cursor += int(math.ceil(len(cat_names) / columns))
 
+            self._restore_picker_scroll(canvas)
+
         search_var.trace_add("write", lambda *_a: rebuild_grid())
         rebuild_grid()
+        picker.after(300, self._enable_picker_scroll_capture)
 
     def _select_stratagem_from_picker(self, picker: tk.Toplevel, index: int, name: str) -> None:
         self.set_stratagem(index, name)
         picker.destroy()
+
+    def _remember_picker_scroll(self, canvas: tk.Canvas) -> None:
+        if self.suppress_picker_scroll_capture:
+            return
+        view = canvas.yview()
+        if view:
+            self.last_picker_scroll = view[0]
+
+    def _restore_picker_scroll(self, canvas: tk.Canvas) -> None:
+        if self.last_picker_scroll is None or not self.pending_picker_restore:
+            return
+        self.pending_picker_restore = False
+        previous = self.suppress_picker_scroll_capture
+        self.suppress_picker_scroll_capture = True
+        canvas.update_idletasks()
+        canvas.yview_moveto(self.last_picker_scroll)
+        canvas.after(50, lambda: canvas.yview_moveto(self.last_picker_scroll))
+        canvas.after(200, lambda: canvas.yview_moveto(self.last_picker_scroll))
+        canvas.after(250, lambda: self._restore_picker_scroll_capture(previous))
+
+    def _restore_picker_scroll_capture(self, previous: bool) -> None:
+        self.suppress_picker_scroll_capture = previous
+
+    def _enable_picker_scroll_capture(self) -> None:
+        self.suppress_picker_scroll_capture = False
 
     def get_icon_photo(self, name: str, size: int) -> Optional["ImageTk.PhotoImage"]:
         cache_key = (name, size)
