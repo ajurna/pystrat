@@ -13,8 +13,9 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
-
+# Icons and stratagem info.
 # https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg
+# https://helldivers.wiki.gg/wiki/Category:Stratagems
 
 SVG_ERROR = None
 try:
