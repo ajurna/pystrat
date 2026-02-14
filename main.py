@@ -76,6 +76,7 @@ class Stratagem:
     name: str
     sequence: List[str]
     category: str
+    icon: tk.PhotoImage
 
 
 @dataclass
@@ -131,7 +132,10 @@ def load_stratagems() -> List[Stratagem]:
     items: List[Stratagem] = []
     for entry in raw:
         category = entry.get("category", "general")
-        items.append(Stratagem(entry["name"], entry["sequence"], category))
+        svg_path = ICON_DIR / f"{entry["name"]}.svg"
+        png = render_svg_to_png_bytes(svg_path, 64)
+        image = tk.PhotoImage(data=png)
+        items.append(Stratagem(entry["name"], entry["sequence"], category, image))
     return items
 
 
@@ -277,7 +281,7 @@ class StratagemApp:
         self.equipped = self.equipped[: len(self.keybinds)]
         self.persist_user_data()
 
-        self.icon_cache: Dict[Tuple[str, int], "ImageTk.PhotoImage"] = {}
+        # self.icon_cache: Dict[Tuple[str, int], "ImageTk.PhotoImage"] = {}
         self.icon_jobs: set[Tuple[str, int]] = set()
         self.sequence_labels: List[tk.Label] = []
         self.icon_labels: List[tk.Label] = []
@@ -467,8 +471,8 @@ class StratagemApp:
             self.sequence_labels.append(seq_label)
             self.icon_labels.append(icon_label)
             self.name_labels.append(name_label)
+            self.icon_labels[index].configure(image=self.stratagem_map[self.equipped[index]].icon)
 
-            self.update_icon(index)
 
         status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
         status_frame.grid(row=3, column=0, sticky="ew")
@@ -511,7 +515,7 @@ class StratagemApp:
         self.equipped[index] = name
         self.sequence_labels[index].configure(text=self.sequence_for(name))
         self.name_labels[index].configure(text=name)
-        self.update_icon(index)
+        self.icon_labels[index].configure(image=self.stratagem_map[name].icon)
         self.persist_user_data()
 
     def open_icon_picker(self, index: int) -> None:
@@ -663,14 +667,7 @@ class StratagemApp:
 
                     icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
                     icon.pack()
-                    photo = self.get_icon_photo(name, size)
-                    if photo:
-                        icon.configure(image=photo)
-                        icon.image = photo
-                    else:
-                        icon.configure(
-                            text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7)
-                        )
+                    icon.configure(image=self.stratagem_map[name].icon)
 
                     label = tk.Label(
                         cell,
@@ -729,26 +726,6 @@ class StratagemApp:
 
     def _enable_picker_scroll_capture(self) -> None:
         self.suppress_picker_scroll_capture = False
-
-    def get_icon_photo(self, name: str, size: int) -> Optional["ImageTk.PhotoImage"]:
-        cache_key = (name, size)
-        cached = self.icon_cache.get(cache_key)
-        if cached:
-            return cached
-
-        svg_path = ICON_DIR / f"{name}.svg"
-        if not svg_path.exists() or not SVG_AVAILABLE:
-            return None
-        try:
-            png_bytes = render_svg_to_png_bytes(svg_path, size)
-            if not png_bytes:
-                return None
-            image = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
-            photo = ImageTk.PhotoImage(image)
-            self.icon_cache[cache_key] = photo
-            return photo
-        except Exception:
-            return None
 
     def on_key_delay_change(self) -> None:
         try:
@@ -815,65 +792,6 @@ class StratagemApp:
         for idx, strat_name in enumerate(loadout[: len(self.equipped)]):
             self.set_stratagem(idx, strat_name)
         self.persist_user_data()
-
-    def update_icon(self, index: int) -> None:
-        name = self.equipped[index]
-        svg_path = ICON_DIR / f"{name}.svg"
-        size = 56
-        cache_key = (name, size)
-
-        cached = self.icon_cache.get(cache_key)
-        if cached:
-            self.icon_labels[index].configure(image=cached, text="")
-            self.icon_labels[index].image = cached
-            return
-
-        self.icon_labels[index].configure(
-            image="", text="Loading...", fg=MUTED_FG, font=("Segoe UI", 8)
-        )
-
-        if not svg_path.exists() or not SVG_AVAILABLE:
-            self.icon_labels[index].configure(text="No Icon")
-            return
-
-        if cache_key in self.icon_jobs:
-            return
-
-        self.icon_jobs.add(cache_key)
-        threading.Thread(
-            target=self.render_icon_async,
-            args=(index, cache_key, size, svg_path),
-            daemon=True,
-        ).start()
-
-    def render_icon_async(
-        self, index: int, cache_key: Tuple[str, int], size: int, svg_path: Path
-    ) -> None:
-        png_bytes: Optional[bytes] = None
-        error_message: Optional[str] = None
-        try:
-            png_bytes = render_svg_to_png_bytes(svg_path, size)
-        except Exception as exc:
-            error_message = f"Icon render failed: {exc}"
-            png_bytes = None
-
-        def apply_icon() -> None:
-            try:
-                if png_bytes:
-                    image = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
-                    photo = ImageTk.PhotoImage(image)
-                    self.icon_cache[cache_key] = photo
-                    self.icon_labels[index].configure(image=photo, text="")
-                    self.icon_labels[index].image = photo
-                elif error_message and error_message != self.last_icon_error:
-                    self.last_icon_error = error_message
-                    self.status_var.set(error_message)
-                else:
-                    self.icon_labels[index].configure(text="No Icon")
-            finally:
-                self.icon_jobs.discard(cache_key)
-
-        self.run_in_ui(apply_icon)
 
     def register_hotkeys(self) -> None:
         if os.name != "nt":
