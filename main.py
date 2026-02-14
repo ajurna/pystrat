@@ -253,18 +253,26 @@ class StratagemApp:
             self.keybinds = list(desired_keybinds)
         else:
             existing = {entry.get("letter") for entry in self.keybinds}
-            missing = [entry for entry in desired_keybinds if entry["letter"] not in existing]
+            missing = [
+                entry for entry in desired_keybinds if entry["letter"] not in existing
+            ]
             if missing:
                 self.keybinds.extend(missing)
-            order_map = {entry["letter"]: idx for idx, entry in enumerate(desired_keybinds)}
-            self.keybinds.sort(key=lambda entry: order_map.get(entry.get("letter"), 999))
+            order_map = {
+                entry["letter"]: idx for idx, entry in enumerate(desired_keybinds)
+            }
+            self.keybinds.sort(
+                key=lambda entry: order_map.get(entry.get("letter"), 999)
+            )
 
         for name in self.equipped:
             if name and name not in self.stratagem_names:
                 self.stratagem_names.append(name)
 
         if len(self.equipped) < len(self.keybinds):
-            default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
+            default_fill = self.stratagem_names[
+                : len(self.keybinds) - len(self.equipped)
+            ]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
         self.persist_user_data()
@@ -274,6 +282,7 @@ class StratagemApp:
         self.sequence_labels: List[tk.Label] = []
         self.icon_labels: List[tk.Label] = []
         self.name_labels: List[tk.Label] = []
+        self.icon_size = 64
 
         self.status_var = tk.StringVar(value="Ready")
         self.last_icon_error: Optional[str] = None
@@ -348,7 +357,9 @@ class StratagemApp:
             font=("Segoe UI", 9),
         )
         key_mode_label.pack(side="left", padx=(0, 6))
-        self.input_keys_var = tk.StringVar(value="WASD" if self.input_keys == "wasd" else "Arrows")
+        self.input_keys_var = tk.StringVar(
+            value="WASD" if self.input_keys == "wasd" else "Arrows"
+        )
         key_mode_combo = ttk.Combobox(
             key_mode_frame,
             textvariable=self.input_keys_var,
@@ -379,7 +390,9 @@ class StratagemApp:
         )
         self.preset_combo.pack(side="left", padx=(0, 6))
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_select)
-        preset_save = ttk.Button(preset_frame, text="Save", command=self.save_preset_current)
+        preset_save = ttk.Button(
+            preset_frame, text="Save", command=self.save_preset_current
+        )
         preset_save.pack(side="left")
         preset_menu_button = tk.Menubutton(
             preset_frame,
@@ -424,7 +437,9 @@ class StratagemApp:
             )
             key_label.grid(row=0, column=0, sticky="w")
 
-            icon_label = tk.Label(card, bg="#0f0f12", width=64, height=64, anchor="center")
+            icon_label = tk.Label(
+                card, bg="#0f0f12", width=64, height=64, anchor="center"
+            )
             icon_label.grid(row=1, column=0, rowspan=2, padx=(0, 12), pady=6)
             icon_label.bind("<Button-1>", lambda _e, i=index: self.open_icon_picker(i))
 
@@ -546,6 +561,7 @@ class StratagemApp:
         container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
         canvas = tk.Canvas(container, bg=DARK_BG, highlightthickness=0)
+
         def on_scroll(*args: object) -> None:
             canvas.yview(*args)
             self._remember_picker_scroll(canvas)
@@ -562,20 +578,34 @@ class StratagemApp:
             lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
         )
         canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=lambda *args: (scrollbar.set(*args), self._remember_picker_scroll(canvas)))
+        canvas.configure(
+            yscrollcommand=lambda *args: (
+                scrollbar.set(*args),
+                self._remember_picker_scroll(canvas),
+            )
+        )
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         canvas.bind_all(
             "<MouseWheel>",
-            lambda e: (canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"), self._remember_picker_scroll(canvas)),
+            lambda e: (
+                canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
+                self._remember_picker_scroll(canvas),
+            ),
         )
         canvas.bind_all(
             "<Button-4>",
-            lambda _e: (canvas.yview_scroll(-3, "units"), self._remember_picker_scroll(canvas)),
+            lambda _e: (
+                canvas.yview_scroll(-3, "units"),
+                self._remember_picker_scroll(canvas),
+            ),
         )
         canvas.bind_all(
             "<Button-5>",
-            lambda _e: (canvas.yview_scroll(3, "units"), self._remember_picker_scroll(canvas)),
+            lambda _e: (
+                canvas.yview_scroll(3, "units"),
+                self._remember_picker_scroll(canvas),
+            ),
         )
 
         columns = 4
@@ -599,7 +629,11 @@ class StratagemApp:
 
             row_cursor = 0
             for category in category_order:
-                cat_names = [name for name in names if self.stratagem_category.get(name) == category]
+                cat_names = [
+                    name
+                    for name in names
+                    if self.stratagem_category.get(name) == category
+                ]
                 if not cat_names:
                     continue
 
@@ -611,7 +645,14 @@ class StratagemApp:
                     font=("Segoe UI", 10, "bold"),
                     anchor="w",
                 )
-                header.grid(row=row_cursor, column=0, columnspan=columns, sticky="w", padx=6, pady=(10, 4))
+                header.grid(
+                    row=row_cursor,
+                    column=0,
+                    columnspan=columns,
+                    sticky="w",
+                    padx=6,
+                    pady=(10, 4),
+                )
                 row_cursor += 1
 
                 for idx, name in enumerate(cat_names):
@@ -627,7 +668,9 @@ class StratagemApp:
                         icon.configure(image=photo)
                         icon.image = photo
                     else:
-                        icon.configure(text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7))
+                        icon.configure(
+                            text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7)
+                        )
 
                     label = tk.Label(
                         cell,
@@ -643,7 +686,9 @@ class StratagemApp:
                     for widget in (cell, icon, label):
                         widget.bind(
                             "<Button-1>",
-                            lambda _e, n=name: self._select_stratagem_from_picker(picker, index, n),
+                            lambda _e, n=name: self._select_stratagem_from_picker(
+                                picker, index, n
+                            ),
                         )
 
                 row_cursor += int(math.ceil(len(cat_names) / columns))
@@ -654,7 +699,9 @@ class StratagemApp:
         rebuild_grid()
         picker.after(300, self._enable_picker_scroll_capture)
 
-    def _select_stratagem_from_picker(self, picker: tk.Toplevel, index: int, name: str) -> None:
+    def _select_stratagem_from_picker(
+        self, picker: tk.Toplevel, index: int, name: str
+    ) -> None:
         self.set_stratagem(index, name)
         picker.destroy()
 
@@ -746,7 +793,9 @@ class StratagemApp:
         name = self.preset_var.get()
         if not name:
             return
-        if not messagebox.askyesno("Delete Preset", f"Delete preset '{name}'?", parent=self.root):
+        if not messagebox.askyesno(
+            "Delete Preset", f"Delete preset '{name}'?", parent=self.root
+        ):
             return
         self.presets.pop(name, None)
         if self.active_preset == name:
@@ -779,7 +828,9 @@ class StratagemApp:
             self.icon_labels[index].image = cached
             return
 
-        self.icon_labels[index].configure(image="", text="Loading...", fg=MUTED_FG, font=("Segoe UI", 8))
+        self.icon_labels[index].configure(
+            image="", text="Loading...", fg=MUTED_FG, font=("Segoe UI", 8)
+        )
 
         if not svg_path.exists() or not SVG_AVAILABLE:
             self.icon_labels[index].configure(text="No Icon")
@@ -795,7 +846,9 @@ class StratagemApp:
             daemon=True,
         ).start()
 
-    def render_icon_async(self, index: int, cache_key: Tuple[str, int], size: int, svg_path: Path) -> None:
+    def render_icon_async(
+        self, index: int, cache_key: Tuple[str, int], size: int, svg_path: Path
+    ) -> None:
         png_bytes: Optional[bytes] = None
         error_message: Optional[str] = None
         try:
@@ -847,7 +900,9 @@ class StratagemApp:
 
     def register_local_bindings(self) -> None:
         for keysym, index in LOCAL_KEYSYM_TO_INDEX.items():
-            self.root.bind(f"<KeyPress-{keysym}>", lambda _e, i=index: self.activate_stratagem(i))
+            self.root.bind(
+                f"<KeyPress-{keysym}>", lambda _e, i=index: self.activate_stratagem(i)
+            )
 
     def register_debug_key_capture(self) -> None:
         self.root.bind_all("<KeyPress>", self.on_any_key)
@@ -889,7 +944,9 @@ class StratagemApp:
             return
         sequence_text = " ".join(strat.sequence)
         self.status_var.set(f"Activated: {name} ({sequence_text})")
-        threading.Thread(target=self.send_sequence, args=(strat.sequence,), daemon=True).start()
+        threading.Thread(
+            target=self.send_sequence, args=(strat.sequence,), daemon=True
+        ).start()
 
     def send_sequence(self, sequence: List[str]) -> None:
         import ctypes
@@ -951,7 +1008,10 @@ class StratagemApp:
 
         def send_ctrl(flags: int) -> None:
             scan = user32.MapVirtualKeyW(VK_CONTROL, 0)
-            inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)))
+            inp = INPUT(
+                1,
+                INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)),
+            )
             user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
         send_ctrl(0)
