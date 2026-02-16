@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-import io
 import json
 import os
 import queue
@@ -10,25 +7,15 @@ import time
 from dataclasses import dataclass
 import math
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
+from reportlab.graphics import renderPM
+from svglib.svglib import svg2rlg
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 # Icons and stratagem info.
 # https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg
 # https://helldivers.wiki.gg/wiki/Category:Stratagems
-
-SVG_ERROR = None
-try:
-    from reportlab.graphics import renderPM  # type: ignore
-    from svglib.svglib import svg2rlg  # type: ignore
-    from PIL import Image, ImageTk  # type: ignore
-
-    SVG_AVAILABLE = True
-except Exception as exc:
-    SVG_AVAILABLE = False
-    SVG_ERROR = str(exc)
-
 
 APP_TITLE = "Stratagem Hotkeys"
 BASE_DIR = Path(__file__).resolve().parent
@@ -76,6 +63,8 @@ class Stratagem:
     name: str
     sequence: List[str]
     category: str
+    icon: tk.PhotoImage
+    sequence_display: str
 
 
 @dataclass
@@ -128,16 +117,21 @@ class UserData:
 def load_stratagems() -> List[Stratagem]:
     with STRATAGEMS_FILE.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
+    arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
     items: List[Stratagem] = []
     for entry in raw:
         category = entry.get("category", "general")
-        items.append(Stratagem(entry["name"], entry["sequence"], category))
+        svg_path = ICON_DIR / f"{entry['name']}.svg"
+        png = render_svg_to_png_bytes(svg_path, 64)
+        image = tk.PhotoImage(data=png)
+        seq_display = " ".join(arrows.get(step.upper(), step) for step in entry["sequence"])
+        items.append(
+            Stratagem(entry["name"], entry["sequence"], category, image, seq_display)
+        )
     return items
 
 
-def render_svg_to_png_bytes(svg_path: Path, size: int) -> Optional[bytes]:
-    if not SVG_AVAILABLE:
-        return None
+def render_svg_to_png_bytes(svg_path: Path, size: int) -> Optional[str]:
     drawing = svg2rlg(str(svg_path))
     if drawing is None:
         return None
@@ -191,7 +185,8 @@ class HotkeyManager:
 
     def stop(self) -> None:
         if self.thread_id is not None:
-            self.user32.PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0)
+            post_thread_message = getattr(self.user32, "PostThreadMessageW")
+            post_thread_message(self.thread_id, WM_QUIT, 0, 0)
         if self.thread:
             self.thread.join(timeout=1)
 
@@ -253,30 +248,35 @@ class StratagemApp:
             self.keybinds = list(desired_keybinds)
         else:
             existing = {entry.get("letter") for entry in self.keybinds}
-            missing = [entry for entry in desired_keybinds if entry["letter"] not in existing]
+            missing = [
+                entry for entry in desired_keybinds if entry["letter"] not in existing
+            ]
             if missing:
                 self.keybinds.extend(missing)
-            order_map = {entry["letter"]: idx for idx, entry in enumerate(desired_keybinds)}
-            self.keybinds.sort(key=lambda entry: order_map.get(entry.get("letter"), 999))
+            order_map = {
+                entry["letter"]: idx for idx, entry in enumerate(desired_keybinds)
+            }
+            self.keybinds.sort(
+                key=lambda entry: order_map.get(entry.get("letter"), 999)
+            )
 
         for name in self.equipped:
             if name and name not in self.stratagem_names:
                 self.stratagem_names.append(name)
 
         if len(self.equipped) < len(self.keybinds):
-            default_fill = self.stratagem_names[: len(self.keybinds) - len(self.equipped)]
+            default_fill = self.stratagem_names[
+                : len(self.keybinds) - len(self.equipped)
+            ]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
         self.persist_user_data()
 
-        self.icon_cache: Dict[Tuple[str, int], "ImageTk.PhotoImage"] = {}
-        self.icon_jobs: set[Tuple[str, int]] = set()
         self.sequence_labels: List[tk.Label] = []
         self.icon_labels: List[tk.Label] = []
         self.name_labels: List[tk.Label] = []
 
         self.status_var = tk.StringVar(value="Ready")
-        self.last_icon_error: Optional[str] = None
 
         self.hotkeys: Optional[HotkeyManager] = None
         self.hotkey_id_to_index: Dict[int, int] = {}
@@ -348,7 +348,9 @@ class StratagemApp:
             font=("Segoe UI", 9),
         )
         key_mode_label.pack(side="left", padx=(0, 6))
-        self.input_keys_var = tk.StringVar(value="WASD" if self.input_keys == "wasd" else "Arrows")
+        self.input_keys_var = tk.StringVar(
+            value="WASD" if self.input_keys == "wasd" else "Arrows"
+        )
         key_mode_combo = ttk.Combobox(
             key_mode_frame,
             textvariable=self.input_keys_var,
@@ -379,7 +381,9 @@ class StratagemApp:
         )
         self.preset_combo.pack(side="left", padx=(0, 6))
         self.preset_combo.bind("<<ComboboxSelected>>", self.on_preset_select)
-        preset_save = ttk.Button(preset_frame, text="Save", command=self.save_preset_current)
+        preset_save = ttk.Button(
+            preset_frame, text="Save", command=self.save_preset_current
+        )
         preset_save.pack(side="left")
         preset_menu_button = tk.Menubutton(
             preset_frame,
@@ -424,7 +428,9 @@ class StratagemApp:
             )
             key_label.grid(row=0, column=0, sticky="w")
 
-            icon_label = tk.Label(card, bg="#0f0f12", width=64, height=64, anchor="center")
+            icon_label = tk.Label(
+                card, bg="#0f0f12", width=64, height=64, anchor="center"
+            )
             icon_label.grid(row=1, column=0, rowspan=2, padx=(0, 12), pady=6)
             icon_label.bind("<Button-1>", lambda _e, i=index: self.open_icon_picker(i))
 
@@ -452,8 +458,9 @@ class StratagemApp:
             self.sequence_labels.append(seq_label)
             self.icon_labels.append(icon_label)
             self.name_labels.append(name_label)
-
-            self.update_icon(index)
+            self.icon_labels[index].configure(
+                image=self.stratagem_map[self.equipped[index]].icon
+            )
 
         status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
         status_frame.grid(row=3, column=0, sticky="ew")
@@ -469,12 +476,6 @@ class StratagemApp:
         )
         status.pack(fill="both", expand=True)
 
-        if not SVG_AVAILABLE:
-            message = "SVG support disabled. Install svglib, reportlab, and pillow to show icons."
-            if SVG_ERROR:
-                message = f"SVG support disabled: {SVG_ERROR}"
-            self.status_var.set(message)
-
     def persist_user_data(self) -> None:
         self.user_data.equipped_stratagems = list(self.equipped)
         self.user_data.keybinds = list(self.keybinds)
@@ -488,15 +489,13 @@ class StratagemApp:
         strat = self.stratagem_map.get(name)
         if not strat:
             return "?"
-        arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
-        display = [arrows.get(step.upper(), step) for step in strat.sequence]
-        return " ".join(display)
+        return strat.sequence_display
 
     def set_stratagem(self, index: int, name: str) -> None:
         self.equipped[index] = name
         self.sequence_labels[index].configure(text=self.sequence_for(name))
         self.name_labels[index].configure(text=name)
-        self.update_icon(index)
+        self.icon_labels[index].configure(image=self.stratagem_map[name].icon)
         self.persist_user_data()
 
     def open_icon_picker(self, index: int) -> None:
@@ -546,6 +545,7 @@ class StratagemApp:
         container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
         canvas = tk.Canvas(container, bg=DARK_BG, highlightthickness=0)
+
         def on_scroll(*args: object) -> None:
             canvas.yview(*args)
             self._remember_picker_scroll(canvas)
@@ -562,20 +562,34 @@ class StratagemApp:
             lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
         )
         canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=lambda *args: (scrollbar.set(*args), self._remember_picker_scroll(canvas)))
+        canvas.configure(
+            yscrollcommand=lambda *args: (
+                scrollbar.set(*args),
+                self._remember_picker_scroll(canvas),
+            )
+        )
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         canvas.bind_all(
             "<MouseWheel>",
-            lambda e: (canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"), self._remember_picker_scroll(canvas)),
+            lambda e: (
+                canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
+                self._remember_picker_scroll(canvas),
+            ),
         )
         canvas.bind_all(
             "<Button-4>",
-            lambda _e: (canvas.yview_scroll(-3, "units"), self._remember_picker_scroll(canvas)),
+            lambda _e: (
+                canvas.yview_scroll(-3, "units"),
+                self._remember_picker_scroll(canvas),
+            ),
         )
         canvas.bind_all(
             "<Button-5>",
-            lambda _e: (canvas.yview_scroll(3, "units"), self._remember_picker_scroll(canvas)),
+            lambda _e: (
+                canvas.yview_scroll(3, "units"),
+                self._remember_picker_scroll(canvas),
+            ),
         )
 
         columns = 4
@@ -599,7 +613,11 @@ class StratagemApp:
 
             row_cursor = 0
             for category in category_order:
-                cat_names = [name for name in names if self.stratagem_category.get(name) == category]
+                cat_names = [
+                    name
+                    for name in names
+                    if self.stratagem_category.get(name) == category
+                ]
                 if not cat_names:
                     continue
 
@@ -611,7 +629,14 @@ class StratagemApp:
                     font=("Segoe UI", 10, "bold"),
                     anchor="w",
                 )
-                header.grid(row=row_cursor, column=0, columnspan=columns, sticky="w", padx=6, pady=(10, 4))
+                header.grid(
+                    row=row_cursor,
+                    column=0,
+                    columnspan=columns,
+                    sticky="w",
+                    padx=6,
+                    pady=(10, 4),
+                )
                 row_cursor += 1
 
                 for idx, name in enumerate(cat_names):
@@ -622,12 +647,7 @@ class StratagemApp:
 
                     icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
                     icon.pack()
-                    photo = self.get_icon_photo(name, size)
-                    if photo:
-                        icon.configure(image=photo)
-                        icon.image = photo
-                    else:
-                        icon.configure(text="No Icon", fg=MUTED_FG, font=("Segoe UI", 7))
+                    icon.configure(image=self.stratagem_map[name].icon)
 
                     label = tk.Label(
                         cell,
@@ -643,7 +663,9 @@ class StratagemApp:
                     for widget in (cell, icon, label):
                         widget.bind(
                             "<Button-1>",
-                            lambda _e, n=name: self._select_stratagem_from_picker(picker, index, n),
+                            lambda _e, n=name: self._select_stratagem_from_picker(
+                                picker, index, n
+                            ),
                         )
 
                 row_cursor += int(math.ceil(len(cat_names) / columns))
@@ -654,7 +676,9 @@ class StratagemApp:
         rebuild_grid()
         picker.after(300, self._enable_picker_scroll_capture)
 
-    def _select_stratagem_from_picker(self, picker: tk.Toplevel, index: int, name: str) -> None:
+    def _select_stratagem_from_picker(
+        self, picker: tk.Toplevel, index: int, name: str
+    ) -> None:
         self.set_stratagem(index, name)
         picker.destroy()
 
@@ -683,30 +707,10 @@ class StratagemApp:
     def _enable_picker_scroll_capture(self) -> None:
         self.suppress_picker_scroll_capture = False
 
-    def get_icon_photo(self, name: str, size: int) -> Optional["ImageTk.PhotoImage"]:
-        cache_key = (name, size)
-        cached = self.icon_cache.get(cache_key)
-        if cached:
-            return cached
-
-        svg_path = ICON_DIR / f"{name}.svg"
-        if not svg_path.exists() or not SVG_AVAILABLE:
-            return None
-        try:
-            png_bytes = render_svg_to_png_bytes(svg_path, size)
-            if not png_bytes:
-                return None
-            image = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
-            photo = ImageTk.PhotoImage(image)
-            self.icon_cache[cache_key] = photo
-            return photo
-        except Exception:
-            return None
-
     def on_key_delay_change(self) -> None:
         try:
             value = int(self.key_delay_var.get())
-        except Exception:
+        except ValueError:
             return
         value = max(10, min(300, value))
         self.key_delay_ms = value
@@ -746,7 +750,9 @@ class StratagemApp:
         name = self.preset_var.get()
         if not name:
             return
-        if not messagebox.askyesno("Delete Preset", f"Delete preset '{name}'?", parent=self.root):
+        if not messagebox.askyesno(
+            "Delete Preset", f"Delete preset '{name}'?", parent=self.root
+        ):
             return
         self.presets.pop(name, None)
         if self.active_preset == name:
@@ -766,61 +772,6 @@ class StratagemApp:
         for idx, strat_name in enumerate(loadout[: len(self.equipped)]):
             self.set_stratagem(idx, strat_name)
         self.persist_user_data()
-
-    def update_icon(self, index: int) -> None:
-        name = self.equipped[index]
-        svg_path = ICON_DIR / f"{name}.svg"
-        size = 56
-        cache_key = (name, size)
-
-        cached = self.icon_cache.get(cache_key)
-        if cached:
-            self.icon_labels[index].configure(image=cached, text="")
-            self.icon_labels[index].image = cached
-            return
-
-        self.icon_labels[index].configure(image="", text="Loading...", fg=MUTED_FG, font=("Segoe UI", 8))
-
-        if not svg_path.exists() or not SVG_AVAILABLE:
-            self.icon_labels[index].configure(text="No Icon")
-            return
-
-        if cache_key in self.icon_jobs:
-            return
-
-        self.icon_jobs.add(cache_key)
-        threading.Thread(
-            target=self.render_icon_async,
-            args=(index, cache_key, size, svg_path),
-            daemon=True,
-        ).start()
-
-    def render_icon_async(self, index: int, cache_key: Tuple[str, int], size: int, svg_path: Path) -> None:
-        png_bytes: Optional[bytes] = None
-        error_message: Optional[str] = None
-        try:
-            png_bytes = render_svg_to_png_bytes(svg_path, size)
-        except Exception as exc:
-            error_message = f"Icon render failed: {exc}"
-            png_bytes = None
-
-        def apply_icon() -> None:
-            try:
-                if png_bytes:
-                    image = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
-                    photo = ImageTk.PhotoImage(image)
-                    self.icon_cache[cache_key] = photo
-                    self.icon_labels[index].configure(image=photo, text="")
-                    self.icon_labels[index].image = photo
-                elif error_message and error_message != self.last_icon_error:
-                    self.last_icon_error = error_message
-                    self.status_var.set(error_message)
-                else:
-                    self.icon_labels[index].configure(text="No Icon")
-            finally:
-                self.icon_jobs.discard(cache_key)
-
-        self.run_in_ui(apply_icon)
 
     def register_hotkeys(self) -> None:
         if os.name != "nt":
@@ -847,7 +798,9 @@ class StratagemApp:
 
     def register_local_bindings(self) -> None:
         for keysym, index in LOCAL_KEYSYM_TO_INDEX.items():
-            self.root.bind(f"<KeyPress-{keysym}>", lambda _e, i=index: self.activate_stratagem(i))
+            self.root.bind(
+                f"<KeyPress-{keysym}>", lambda _e, i=index: self.activate_stratagem(i)
+            )
 
     def register_debug_key_capture(self) -> None:
         self.root.bind_all("<KeyPress>", self.on_any_key)
@@ -889,7 +842,9 @@ class StratagemApp:
             return
         sequence_text = " ".join(strat.sequence)
         self.status_var.set(f"Activated: {name} ({sequence_text})")
-        threading.Thread(target=self.send_sequence, args=(strat.sequence,), daemon=True).start()
+        threading.Thread(
+            target=self.send_sequence, args=(strat.sequence,), daemon=True
+        ).start()
 
     def send_sequence(self, sequence: List[str]) -> None:
         import ctypes
@@ -951,7 +906,10 @@ class StratagemApp:
 
         def send_ctrl(flags: int) -> None:
             scan = user32.MapVirtualKeyW(VK_CONTROL, 0)
-            inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)))
+            inp = INPUT(
+                1,
+                INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)),
+            )
             user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
         send_ctrl(0)
