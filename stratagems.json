@@ -19,6 +19,8 @@
   {"name": "Eagle Napalm Airstrike", "sequence": ["W", "D", "S", "W"], "category": "Offensive"},
   {"name": "Eagle Smoke Strike", "sequence": ["W", "D", "W", "S"], "category": "Offensive"},
 
+  {"name": "Defoliation Tool", "sequence": ["S", "A", "D", "D", "S"], "category": "Supply"},
+  {"name": "CQC-20", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply"},
   {"name": "Machine Gun", "sequence": ["S", "A", "S", "W", "D"], "category": "Supply"},
   {"name": "Stalwart", "sequence": ["S", "A", "S", "W", "W", "A"], "category": "Supply"},
   {"name": "Heavy Machine Gun", "sequence": ["S", "A", "W", "S", "S"], "category": "Supply"},
@@ -42,6 +44,7 @@
   {"name": "Maxigun", "sequence": ["S", "A", "D", "S", "W", "W"], "category": "Supply"},
   {"name": "Recoilless Rifle", "sequence": ["S", "A", "D", "D", "A"], "category": "Supply"},
   {"name": "Supply Pack", "sequence": ["S", "A", "S", "W", "W", "S"], "category": "Supply"},
+  {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply"},
   {"name": "Jump Pack", "sequence": ["S", "W", "W", "S", "W"], "category": "Supply"},
 
   {"name": "Shield Generator Pack", "sequence": ["S", "W", "A", "D", "A", "D"], "category": "Supply"},
@@ -50,6 +53,7 @@
   {"name": "Guard Dog Hot Dog", "sequence": ["S", "W", "A", "W", "A", "A"], "category": "Supply"},
   {"name": "Guard Dog AR-23", "sequence": ["S", "W", "A", "W", "D", "S"], "category": "Supply"},
   {"name": "Guard Dog Rover", "sequence": ["S", "W", "A", "W", "D", "D"], "category": "Supply"},
+  {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "S", "W", "S", "W"], "category": "Supply"},
   {"name": "Fast Recon Vehicle", "sequence": ["A", "S", "D", "S", "D", "S", "W"], "category": "Supply"},
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply"},
@@ -63,7 +67,7 @@
   {"name": "EMS Mortar Sentry", "sequence": ["S", "W", "D", "S", "D"], "category": "Defensive"},
   {"name": "Mortar Sentry", "sequence": ["S", "W", "D", "D", "S"], "category": "Defensive"},
   {"name": "Shield Generator Relay", "sequence": ["S", "S", "A", "D", "A", "D"], "category": "Defensive"},
-  {"name": "Grenadier Battlement", "sequence": ["S", "D", "S", "A", "D"], "category": "Supply"},
+  {"name": "Grenadier Battlement", "sequence": ["S", "D", "S", "A", "D"], "category": "Defensive"},
   {"name": "Anti-Tank Emplacement", "sequence": ["S", "W", "A", "D", "D", "D"], "category": "Defensive"},
   {"name": "HMG Emplacement", "sequence": ["S", "W", "A", "D", "D", "A"], "category": "Defensive"},
   {"name": "ARC-3 Tesla Tower", "sequence": ["S", "W", "D", "W", "A", "D"], "category": "Defensive"},
@@ -80,13 +84,13 @@
   {"name": "One True Flag", "sequence": ["S", "A", "D", "D", "W"], "category": "Supply"},
   {"name": "De-Escalator", "sequence": ["S", "D", "W", "A", "D"], "category": "Supply"},
   {"name": "Guard Dog ARC-3", "sequence": ["S", "W", "A", "W", "D", "A"], "category": "Supply"},
-  {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply"},
-  {"name": "Defoliation Tool", "sequence": ["S", "A", "D", "D", "S"], "category": "Supply"},
+
+
   {"name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply"},
   {"name": "EAT-411", "sequence": ["S", "S", "A", "W", "S"], "category": "Supply"},
   {"name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply"},
-  {"name": "CQC-20", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply"},
-  {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "S", "W", "S", "W"], "category": "Supply"},
+
+
 
   {"name": "Eagle Rearm", "sequence": ["W", "W", "A", "W", "D"], "category": "General"},
 

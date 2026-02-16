@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-import io
 import json
 import os
 import queue
@@ -10,25 +7,15 @@ import time
 from dataclasses import dataclass
 import math
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
+from reportlab.graphics import renderPM
+from svglib.svglib import svg2rlg
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 # Icons and stratagem info.
 # https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg
 # https://helldivers.wiki.gg/wiki/Category:Stratagems
-
-SVG_ERROR = None
-try:
-    from reportlab.graphics import renderPM  # type: ignore
-    from svglib.svglib import svg2rlg  # type: ignore
-    from PIL import Image, ImageTk  # type: ignore
-
-    SVG_AVAILABLE = True
-except Exception as exc:
-    SVG_AVAILABLE = False
-    SVG_ERROR = str(exc)
-
 
 APP_TITLE = "Stratagem Hotkeys"
 BASE_DIR = Path(__file__).resolve().parent
@@ -77,6 +64,7 @@ class Stratagem:
     sequence: List[str]
     category: str
     icon: tk.PhotoImage
+    sequence_display: str
 
 
 @dataclass
@@ -129,19 +117,21 @@ class UserData:
 def load_stratagems() -> List[Stratagem]:
     with STRATAGEMS_FILE.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
+    arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
     items: List[Stratagem] = []
     for entry in raw:
         category = entry.get("category", "general")
-        svg_path = ICON_DIR / f"{entry["name"]}.svg"
+        svg_path = ICON_DIR / f"{entry['name']}.svg"
         png = render_svg_to_png_bytes(svg_path, 64)
         image = tk.PhotoImage(data=png)
-        items.append(Stratagem(entry["name"], entry["sequence"], category, image))
+        seq_display = " ".join(arrows.get(step.upper(), step) for step in entry["sequence"])
+        items.append(
+            Stratagem(entry["name"], entry["sequence"], category, image, seq_display)
+        )
     return items
 
 
-def render_svg_to_png_bytes(svg_path: Path, size: int) -> Optional[bytes]:
-    if not SVG_AVAILABLE:
-        return None
+def render_svg_to_png_bytes(svg_path: Path, size: int) -> Optional[str]:
     drawing = svg2rlg(str(svg_path))
     if drawing is None:
         return None
@@ -195,7 +185,8 @@ class HotkeyManager:
 
     def stop(self) -> None:
         if self.thread_id is not None:
-            self.user32.PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0)
+            post_thread_message = getattr(self.user32, "PostThreadMessageW")
+            post_thread_message(self.thread_id, WM_QUIT, 0, 0)
         if self.thread:
             self.thread.join(timeout=1)
 
@@ -281,15 +272,11 @@ class StratagemApp:
         self.equipped = self.equipped[: len(self.keybinds)]
         self.persist_user_data()
 
-        # self.icon_cache: Dict[Tuple[str, int], "ImageTk.PhotoImage"] = {}
-        self.icon_jobs: set[Tuple[str, int]] = set()
         self.sequence_labels: List[tk.Label] = []
         self.icon_labels: List[tk.Label] = []
         self.name_labels: List[tk.Label] = []
-        self.icon_size = 64
 
         self.status_var = tk.StringVar(value="Ready")
-        self.last_icon_error: Optional[str] = None
 
         self.hotkeys: Optional[HotkeyManager] = None
         self.hotkey_id_to_index: Dict[int, int] = {}
@@ -471,8 +458,9 @@ class StratagemApp:
             self.sequence_labels.append(seq_label)
             self.icon_labels.append(icon_label)
             self.name_labels.append(name_label)
-            self.icon_labels[index].configure(image=self.stratagem_map[self.equipped[index]].icon)
-
+            self.icon_labels[index].configure(
+                image=self.stratagem_map[self.equipped[index]].icon
+            )
 
         status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
         status_frame.grid(row=3, column=0, sticky="ew")
@@ -488,12 +476,6 @@ class StratagemApp:
         )
         status.pack(fill="both", expand=True)
 
-        if not SVG_AVAILABLE:
-            message = "SVG support disabled. Install svglib, reportlab, and pillow to show icons."
-            if SVG_ERROR:
-                message = f"SVG support disabled: {SVG_ERROR}"
-            self.status_var.set(message)
-
     def persist_user_data(self) -> None:
         self.user_data.equipped_stratagems = list(self.equipped)
         self.user_data.keybinds = list(self.keybinds)
@@ -507,9 +489,7 @@ class StratagemApp:
         strat = self.stratagem_map.get(name)
         if not strat:
             return "?"
-        arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
-        display = [arrows.get(step.upper(), step) for step in strat.sequence]
-        return " ".join(display)
+        return strat.sequence_display
 
     def set_stratagem(self, index: int, name: str) -> None:
         self.equipped[index] = name
@@ -730,7 +710,7 @@ class StratagemApp:
     def on_key_delay_change(self) -> None:
         try:
             value = int(self.key_delay_var.get())
-        except Exception:
+        except ValueError:
             return
         value = max(10, min(300, value))
         self.key_delay_ms = value
