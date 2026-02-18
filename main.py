@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 from reportlab.graphics import renderPM
 from svglib.svglib import svg2rlg
+from tomllib import load as toml_load
 
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
@@ -17,7 +18,6 @@ from tkinter import messagebox, simpledialog, ttk
 # https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg
 # https://helldivers.wiki.gg/wiki/Category:Stratagems
 
-APP_TITLE = "Stratagem Hotkeys"
 BASE_DIR = Path(__file__).resolve().parent
 RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", BASE_DIR))
 USER_DATA_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "pystrat"
@@ -25,6 +25,7 @@ USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATA_FILE = USER_DATA_DIR / "user_data.json"
 STRATAGEMS_FILE = RESOURCE_DIR / "stratagems.json"
 ICON_DIR = RESOURCE_DIR / "StratagemIcons"
+PYPROJECT = RESOURCE_DIR / "pyproject.toml"
 
 DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
@@ -212,7 +213,8 @@ class HotkeyManager:
 class StratagemApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title(APP_TITLE)
+        self.version = toml_load(PYPROJECT.open('rb'))['project']['version']
+        self.root.title(f"Stratagem Hotkeys v{self.version}")
         self.root.configure(bg=DARK_BG)
         icon_path = RESOURCE_DIR / "app.ico"
         if icon_path.exists():
