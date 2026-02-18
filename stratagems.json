@@ -34,6 +34,7 @@
   {"name": "Quasar Cannon", "sequence": ["S", "S", "W", "A", "D"], "category": "Supply"},
   {"name": "ARC-3 Arc Thrower", "sequence": ["S", "D", "S", "W", "A", "A"], "category": "Supply"},
   {"name": "Commando", "sequence": ["S", "A", "W", "S", "D"], "category": "Supply"},
+  {"name": "EAT-411", "sequence": ["S", "S", "A", "W", "S"], "category": "Supply"},
   {"name": "Expendable Napalm", "sequence": ["S", "S", "A", "W", "A"], "category": "Supply"},
   {"name": "Solo Silo", "sequence": ["S", "W", "D", "S", "S"], "category": "Supply"},
   {"name": "Expendable Anti-Tank", "sequence": ["S", "S", "A", "W", "D"], "category": "Supply"},
@@ -87,7 +88,7 @@
 
 
   {"name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply"},
-  {"name": "EAT-411", "sequence": ["S", "S", "A", "W", "S"], "category": "Supply"},
+
   {"name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply"},
 
 
