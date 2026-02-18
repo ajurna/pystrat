@@ -16,6 +16,8 @@ def main() -> None:
         "--icon",
         "app.ico",
         "--add-data",
+        "pyproject.toml;.",
+        "--add-data",
         "stratagems.json;.",
         "--add-data",
         "StratagemIcons;StratagemIcons",
