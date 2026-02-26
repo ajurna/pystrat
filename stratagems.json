@@ -43,6 +43,7 @@
   {"name": "Spear", "sequence": ["S", "S", "W", "S", "S"], "category": "Supply"},
   {"name": "W.A.S.P Launcher", "sequence": ["S", "S", "W", "S", "D"], "category": "Supply"},
   {"name": "Maxigun", "sequence": ["S", "A", "D", "S", "W", "W"], "category": "Supply"},
+  {"name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply"},
   {"name": "Recoilless Rifle", "sequence": ["S", "A", "D", "D", "A"], "category": "Supply"},
   {"name": "Supply Pack", "sequence": ["S", "A", "S", "W", "W", "S"], "category": "Supply"},
   {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply"},
@@ -54,7 +55,7 @@
   {"name": "Guard Dog Hot Dog", "sequence": ["S", "W", "A", "W", "A", "A"], "category": "Supply"},
   {"name": "Guard Dog AR-23", "sequence": ["S", "W", "A", "W", "D", "S"], "category": "Supply"},
   {"name": "Guard Dog Rover", "sequence": ["S", "W", "A", "W", "D", "D"], "category": "Supply"},
-  {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "S", "W", "S", "W"], "category": "Supply"},
+  {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "W", "S", "W"], "category": "Supply"},
   {"name": "Fast Recon Vehicle", "sequence": ["A", "S", "D", "S", "D", "S", "W"], "category": "Supply"},
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply"},
@@ -89,7 +90,7 @@
 
   {"name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply"},
 
-  {"name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply"},
+
 
 
 
