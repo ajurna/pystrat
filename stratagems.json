@@ -48,6 +48,7 @@
   {"name": "Supply Pack", "sequence": ["S", "A", "S", "W", "W", "S"], "category": "Supply"},
   {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply"},
   {"name": "Jump Pack", "sequence": ["S", "W", "W", "S", "W"], "category": "Supply"},
+  {"name": "Cremator", "sequence": ["S", "S", "D", "S", "W", "W"], "category": "Supply"},
 
   {"name": "Shield Generator Pack", "sequence": ["S", "W", "A", "D", "A", "D"], "category": "Supply"},
   {"name": "Directional Shield", "sequence": ["S", "W", "A", "D", "W", "W"], "category": "Supply"},
@@ -68,6 +69,7 @@
   {"name": "Autocannon Sentry", "sequence": ["S", "W", "D", "W", "A", "W"], "category": "Defensive"},
   {"name": "EMS Mortar Sentry", "sequence": ["S", "W", "D", "S", "D"], "category": "Defensive"},
   {"name": "Mortar Sentry", "sequence": ["S", "W", "D", "D", "S"], "category": "Defensive"},
+  {"name": "Gas Mortar Sentry", "sequence": ["S", "W", "D", "D", "A"], "category": "Defensive"},
   {"name": "Shield Generator Relay", "sequence": ["S", "S", "A", "D", "A", "D"], "category": "Defensive"},
   {"name": "Grenadier Battlement", "sequence": ["S", "D", "S", "A", "D"], "category": "Defensive"},
   {"name": "Anti-Tank Emplacement", "sequence": ["S", "W", "A", "D", "D", "D"], "category": "Defensive"},
