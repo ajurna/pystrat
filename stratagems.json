@@ -49,6 +49,7 @@
   {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply"},
   {"name": "Jump Pack", "sequence": ["S", "W", "W", "S", "W"], "category": "Supply"},
   {"name": "Cremator", "sequence": ["S", "S", "D", "S", "W", "W"], "category": "Supply"},
+  {"name": "Bullet Storm", "sequence": ["S", "A", "S", "D", "W", "A"], "category": "Supply"},
 
   {"name": "Shield Generator Pack", "sequence": ["S", "W", "A", "D", "A", "D"], "category": "Supply"},
   {"name": "Directional Shield", "sequence": ["S", "W", "A", "D", "W", "W"], "category": "Supply"},
@@ -60,6 +61,8 @@
   {"name": "Fast Recon Vehicle", "sequence": ["A", "S", "D", "S", "D", "S", "W"], "category": "Supply"},
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply"},
+  {"name": "Lumberer Exosuit", "sequence": ["A", "S", "D", "W", "D", "A", "W"], "category": "Supply"},
+  {"name": "Breakthrough Exosuit", "sequence": ["A", "S", "D", "A", "D", "S", "W"], "category": "Supply"},
 
   {"name": "Gatling Sentry", "sequence": ["S", "W", "D", "A"], "category": "Defensive"},
   {"name": "Machine Gun Sentry", "sequence": ["S", "W", "D", "D", "W"], "category": "Defensive"},
