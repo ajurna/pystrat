@@ -1,3 +1,4 @@
+import ctypes
 import json
 import os
 import queue
@@ -5,9 +6,8 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
-import math
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable
 from reportlab.graphics import renderPM
 from svglib.svglib import svg2rlg
 from tomllib import load as toml_load
@@ -41,6 +41,47 @@ KEY_VK = {
     "D": 0x44,
 }
 
+class _KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ("wVk", ctypes.c_ushort),
+        ("wScan", ctypes.c_ushort),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", ctypes.c_void_p),
+    ]
+
+
+class _MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", ctypes.c_long),
+        ("dy", ctypes.c_long),
+        ("mouseData", ctypes.c_ulong),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", ctypes.c_void_p),
+    ]
+
+
+class _HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", ctypes.c_ulong),
+        ("wParamL", ctypes.c_ushort),
+        ("wParamH", ctypes.c_ushort),
+    ]
+
+
+class _INPUTUNION(ctypes.Union):
+    _fields_ = [
+        ("ki", _KEYBDINPUT),
+        ("mi", _MOUSEINPUT),
+        ("hi", _HARDWAREINPUT),
+    ]
+
+
+class _INPUT(ctypes.Structure):
+    _fields_ = [("type", ctypes.c_ulong), ("union", _INPUTUNION)]
+
+
 WM_HOTKEY = 0x0312
 WM_QUIT = 0x0012
 MOD_NOREPEAT = 0x4000
@@ -62,7 +103,7 @@ LOCAL_KEYSYM_TO_INDEX = {
 @dataclass
 class Stratagem:
     name: str
-    sequence: List[str]
+    sequence: list[str]
     category: str
     icon: tk.PhotoImage
     sequence_display: str
@@ -70,10 +111,10 @@ class Stratagem:
 
 @dataclass
 class UserData:
-    equipped_stratagems: List[str]
-    keybinds: List[Dict[str, str]]
+    equipped_stratagems: list[str]
+    keybinds: list[dict[str, str]]
     key_delay_ms: int
-    presets: Dict[str, List[str]]
+    presets: dict[str, list[str]]
     active_preset: str
     input_keys: str
 
@@ -101,7 +142,7 @@ class UserData:
             input_keys=input_keys,
         )
 
-    def to_payload(self) -> Dict[str, object]:
+    def to_payload(self) -> dict[str, object]:
         return {
             "equipped_stratagems": self.equipped_stratagems,
             "keybinds": self.keybinds,
@@ -115,7 +156,7 @@ class UserData:
         path.write_text(json.dumps(self.to_payload(), indent=4), encoding="utf-8")
 
 
-def load_stratagems() -> List[Stratagem]:
+def load_stratagems() -> list[Stratagem]:
     with STRATAGEMS_FILE.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
     arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
@@ -132,7 +173,7 @@ def load_stratagems() -> List[Stratagem]:
     return items
 
 
-def render_svg_to_png_bytes(svg_path: Path, size: int) -> Optional[str]:
+def render_svg_to_png_bytes(svg_path: Path, size: int) -> str | None:
     drawing = svg2rlg(str(svg_path))
     if drawing is None:
         return None
@@ -160,11 +201,11 @@ class HotkeyManager:
         self.wintypes = wintypes
         self.user32 = ctypes.windll.user32
         self.notify = notify
-        self.thread: Optional[threading.Thread] = None
-        self.thread_id: Optional[int] = None
+        self.thread: threading.Thread | None = None
+        self.thread_id: int | None = None
         self.ready = threading.Event()
-        self.errors: List[str] = []
-        self.hotkey_map: Dict[int, int] = {}
+        self.errors: list[str] = []
+        self.hotkey_map: dict[int, int] = {}
 
         class MSG(ctypes.Structure):
             _fields_ = [
@@ -178,7 +219,7 @@ class HotkeyManager:
 
         self.MSG = MSG
 
-    def start(self, hotkey_map: Dict[int, int]) -> None:
+    def start(self, hotkey_map: dict[int, int]) -> None:
         self.hotkey_map = dict(hotkey_map)
         self.thread = threading.Thread(target=self._message_loop, daemon=True)
         self.thread.start()
@@ -274,16 +315,16 @@ class StratagemApp:
         self.equipped = self.equipped[: len(self.keybinds)]
         self.persist_user_data()
 
-        self.sequence_labels: List[tk.Label] = []
-        self.icon_labels: List[tk.Label] = []
-        self.name_labels: List[tk.Label] = []
+        self.sequence_labels: list[tk.Label] = []
+        self.icon_labels: list[tk.Label] = []
+        self.name_labels: list[tk.Label] = []
 
         self.status_var = tk.StringVar(value="Ready")
 
-        self.hotkeys: Optional[HotkeyManager] = None
-        self.hotkey_id_to_index: Dict[int, int] = {}
-        self.ui_queue: "queue.Queue[Callable[[], None]]" = queue.Queue()
-        self.last_picker_scroll: Optional[float] = None
+        self.hotkeys: HotkeyManager | None = None
+        self.hotkey_id_to_index: dict[int, int] = {}
+        self.ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
+        self.last_picker_scroll: float | None = None
         self.suppress_picker_scroll_capture = False
         self.pending_picker_restore = False
         self.build_ui()
@@ -670,7 +711,7 @@ class StratagemApp:
                             ),
                         )
 
-                row_cursor += int(math.ceil(len(cat_names) / columns))
+                row_cursor += (len(cat_names) + columns - 1) // columns
 
             self._restore_picker_scroll(canvas)
 
@@ -724,7 +765,7 @@ class StratagemApp:
         self.input_keys = "arrows" if "arrow" in label else "wasd"
         self.persist_user_data()
 
-    def get_preset_names(self) -> List[str]:
+    def get_preset_names(self) -> list[str]:
         return sorted(self.presets.keys())
 
     def refresh_preset_combo(self) -> None:
@@ -785,7 +826,7 @@ class StratagemApp:
             self.status_var.set(str(exc))
             return
 
-        hotkey_map: Dict[int, int] = {}
+        hotkey_map: dict[int, int] = {}
         for idx, keybind in enumerate(self.keybinds):
             vk = parse_key_code(keybind["key_code"])
             hotkey_id = 1000 + idx
@@ -848,9 +889,7 @@ class StratagemApp:
             target=self.send_sequence, args=(strat.sequence,), daemon=True
         ).start()
 
-    def send_sequence(self, sequence: List[str]) -> None:
-        import ctypes
-
+    def send_sequence(self, sequence: list[str]) -> None:
         if os.name != "nt":
             return
 
@@ -863,56 +902,20 @@ class StratagemApp:
         VK_DOWN = 0x28
         VK_RIGHT = 0x27
 
-        class KEYBDINPUT(ctypes.Structure):
-            _fields_ = [
-                ("wVk", ctypes.c_ushort),
-                ("wScan", ctypes.c_ushort),
-                ("dwFlags", ctypes.c_ulong),
-                ("time", ctypes.c_ulong),
-                ("dwExtraInfo", ctypes.c_void_p),
-            ]
-
-        class MOUSEINPUT(ctypes.Structure):
-            _fields_ = [
-                ("dx", ctypes.c_long),
-                ("dy", ctypes.c_long),
-                ("mouseData", ctypes.c_ulong),
-                ("dwFlags", ctypes.c_ulong),
-                ("time", ctypes.c_ulong),
-                ("dwExtraInfo", ctypes.c_void_p),
-            ]
-
-        class HARDWAREINPUT(ctypes.Structure):
-            _fields_ = [
-                ("uMsg", ctypes.c_ulong),
-                ("wParamL", ctypes.c_ushort),
-                ("wParamH", ctypes.c_ushort),
-            ]
-
-        class INPUTUNION(ctypes.Union):
-            _fields_ = [
-                ("ki", KEYBDINPUT),
-                ("mi", MOUSEINPUT),
-                ("hi", HARDWAREINPUT),
-            ]
-
-        class INPUT(ctypes.Structure):
-            _fields_ = [("type", ctypes.c_ulong), ("union", INPUTUNION)]
-
-        user32.SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
+        user32.SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(_INPUT), ctypes.c_int]
         user32.SendInput.restype = ctypes.c_uint
 
         def send_key(vk: int, flags: int) -> None:
-            inp = INPUT(1, INPUTUNION(ki=KEYBDINPUT(vk, 0, flags, 0, None)))
-            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+            inp = _INPUT(1, _INPUTUNION(ki=_KEYBDINPUT(vk, 0, flags, 0, None)))
+            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
 
         def send_ctrl(flags: int) -> None:
             scan = user32.MapVirtualKeyW(VK_CONTROL, 0)
-            inp = INPUT(
+            inp = _INPUT(
                 1,
-                INPUTUNION(ki=KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)),
+                _INPUTUNION(ki=_KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)),
             )
-            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
 
         send_ctrl(0)
         time.sleep(0.02)
