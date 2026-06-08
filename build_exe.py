@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 
-def main() -> None:
+def build() -> None:
     args = [
         sys.executable,
         "-m",
@@ -25,7 +25,14 @@ def main() -> None:
         "app.ico;.",
         "main.py",
     ]
-    raise SystemExit(subprocess.call(args))
+    subprocess.run(args, check=True)
+
+
+def main() -> None:
+    try:
+        build()
+    except subprocess.CalledProcessError as e:
+        raise SystemExit(e.returncode)
 
 
 if __name__ == "__main__":
