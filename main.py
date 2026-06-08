@@ -638,41 +638,65 @@ class StratagemApp:
         columns = 4
         size = 52
         category_order = ["Offensive", "Supply", "Defensive", "General"]
-        category_labels = {
-            "Offensive": "Offensive",
-            "Supply": "Supply",
-            "Defensive": "Defensive",
-            "General": "General",
-        }
+
+        # Build all widgets once; rebuild_grid only repositions/hides them.
+        cat_header_widgets: dict[str, tk.Label] = {}
+        cell_widgets: dict[str, tk.Frame] = {}
+        for category in category_order:
+            cat_header_widgets[category] = tk.Label(
+                scroll_frame,
+                text=category,
+                bg=DARK_BG,
+                fg=MUTED_FG,
+                font=("Segoe UI", 10, "bold"),
+                anchor="w",
+            )
+            for name in self.stratagem_names:
+                if self.stratagem_category.get(name) != category:
+                    continue
+                cell = tk.Frame(scroll_frame, bg=CARD_BG, padx=6, pady=6)
+                icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
+                icon.pack()
+                icon.configure(image=self.stratagem_map[name].icon)
+                label = tk.Label(
+                    cell,
+                    text=name,
+                    bg=CARD_BG,
+                    fg=TEXT_FG,
+                    font=("Segoe UI", 8),
+                    wraplength=110,
+                    justify="center",
+                )
+                label.pack(pady=(4, 0))
+                for widget in (cell, icon, label):
+                    widget.bind(
+                        "<Button-1>",
+                        lambda _e, n=name: self._select_stratagem_from_picker(
+                            picker, index, n
+                        ),
+                    )
+                cell_widgets[name] = cell
 
         def rebuild_grid(*_args: object) -> None:
-            for child in scroll_frame.winfo_children():
-                child.destroy()
-
             filter_text = search_var.get().strip().lower()
-            names = self.stratagem_names
-            if filter_text:
-                names = [name for name in names if filter_text in name.lower()]
+
+            for header in cat_header_widgets.values():
+                header.grid_remove()
+            for cell in cell_widgets.values():
+                cell.grid_remove()
 
             row_cursor = 0
             for category in category_order:
                 cat_names = [
                     name
-                    for name in names
+                    for name in self.stratagem_names
                     if self.stratagem_category.get(name) == category
+                    and (not filter_text or filter_text in name.lower())
                 ]
                 if not cat_names:
                     continue
 
-                header = tk.Label(
-                    scroll_frame,
-                    text=category_labels.get(category, category.title()),
-                    bg=DARK_BG,
-                    fg=MUTED_FG,
-                    font=("Segoe UI", 10, "bold"),
-                    anchor="w",
-                )
-                header.grid(
+                cat_header_widgets[category].grid(
                     row=row_cursor,
                     column=0,
                     columnspan=columns,
@@ -683,33 +707,13 @@ class StratagemApp:
                 row_cursor += 1
 
                 for idx, name in enumerate(cat_names):
-                    row = row_cursor + idx // columns
-                    col = idx % columns
-                    cell = tk.Frame(scroll_frame, bg=CARD_BG, padx=6, pady=6)
-                    cell.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
-
-                    icon = tk.Label(cell, bg="#0f0f12", width=size, height=size)
-                    icon.pack()
-                    icon.configure(image=self.stratagem_map[name].icon)
-
-                    label = tk.Label(
-                        cell,
-                        text=name,
-                        bg=CARD_BG,
-                        fg=TEXT_FG,
-                        font=("Segoe UI", 8),
-                        wraplength=110,
-                        justify="center",
+                    cell_widgets[name].grid(
+                        row=row_cursor + idx // columns,
+                        column=idx % columns,
+                        padx=6,
+                        pady=6,
+                        sticky="nsew",
                     )
-                    label.pack(pady=(4, 0))
-
-                    for widget in (cell, icon, label):
-                        widget.bind(
-                            "<Button-1>",
-                            lambda _e, n=name: self._select_stratagem_from_picker(
-                                picker, index, n
-                            ),
-                        )
 
                 row_cursor += (len(cat_names) + columns - 1) // columns
 
