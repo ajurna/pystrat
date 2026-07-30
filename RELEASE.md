@@ -1,4 +1,4 @@
 ## Changes
 - bump deps
-- reorder gl-28
-- fix bastion keys
+- added stratagems
+- added cooldown indicators and options.
