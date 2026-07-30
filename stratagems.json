@@ -21,6 +21,7 @@
 
   {"name": "Defoliation Tool", "sequence": ["S", "A", "D", "D", "S"], "category": "Supply"},
   {"name": "CQC-20", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply"},
+  {"name": "One True Flag", "sequence": ["S", "A", "D", "D", "W"], "category": "Supply"},
   {"name": "Machine Gun", "sequence": ["S", "A", "S", "W", "D"], "category": "Supply"},
   {"name": "Stalwart", "sequence": ["S", "A", "S", "W", "W", "A"], "category": "Supply"},
   {"name": "Heavy Machine Gun", "sequence": ["S", "A", "W", "S", "S"], "category": "Supply"},
@@ -57,6 +58,7 @@
   {"name": "Guard Dog AR-23", "sequence": ["S", "W", "A", "W", "D", "S"], "category": "Supply"},
   {"name": "Guard Dog Rover", "sequence": ["S", "W", "A", "W", "D", "D"], "category": "Supply"},
   {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "W", "S", "W"], "category": "Supply"},
+  {"name": "Supply FRV", "sequence": ["A", "S", "D", "A", "S", "W", "W"], "category": "Supply"},
   {"name": "Fast Recon Vehicle", "sequence": ["A", "S", "D", "S", "D", "S", "W"], "category": "Supply"},
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply"},
@@ -91,7 +93,7 @@
   {"name": "Guard Dog Dog Breath", "sequence": ["S", "W", "A", "W", "D", "W"], "category": "Supply"},
   {"name": "Portable Hellbomb", "sequence": ["S", "D", "W", "W", "W"], "category": "Supply"},
 
-  {"name": "One True Flag", "sequence": ["S", "A", "D", "D", "W"], "category": "Supply"},
+
   {"name": "De-Escalator", "sequence": ["S", "D", "W", "A", "D"], "category": "Supply"},
   {"name": "Guard Dog ARC-3", "sequence": ["S", "W", "A", "W", "D", "A"], "category": "Supply"},
 
