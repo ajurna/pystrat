@@ -107,6 +107,7 @@ class Stratagem:
     category: str
     icon: tk.PhotoImage
     sequence_display: str
+    cooldown_seconds: int | None
 
 
 @dataclass
@@ -160,7 +161,7 @@ def load_stratagems() -> list[Stratagem]:
     with STRATAGEMS_FILE.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
     arrows = {"W": "⬆", "A": "⬅", "S": "⬇", "D": "➡"}
-    items: List[Stratagem] = []
+    items: list[Stratagem] = []
     for entry in raw:
         category = entry.get("category", "general")
         svg_path = ICON_DIR / f"{entry['name']}.svg"
@@ -168,7 +169,14 @@ def load_stratagems() -> list[Stratagem]:
         image = tk.PhotoImage(data=png)
         seq_display = " ".join(arrows.get(step.upper(), step) for step in entry["sequence"])
         items.append(
-            Stratagem(entry["name"], entry["sequence"], category, image, seq_display)
+            Stratagem(
+                entry["name"],
+                entry["sequence"],
+                category,
+                image,
+                seq_display,
+                entry.get("cooldown_seconds"),
+            )
         )
     return items
 
@@ -316,8 +324,12 @@ class StratagemApp:
         self.persist_user_data()
 
         self.sequence_labels: list[tk.Label] = []
-        self.icon_labels: list[tk.Label] = []
+        self.icon_canvases: list[tk.Canvas] = []
+        self.icon_image_items: list[int] = []
+        self.icon_arc_items: list[int] = []
         self.name_labels: list[tk.Label] = []
+        self.cooldown_labels: list[tk.Label] = []
+        self.cooldown_end: list[float] = [0.0] * len(self.keybinds)
 
         self.status_var = tk.StringVar(value="Ready")
 
@@ -334,6 +346,7 @@ class StratagemApp:
             self.register_debug_key_capture()
         self.root.after(100, self.root.focus_set)
         self.root.after(30, self.process_ui_queue)
+        self.root.after(200, self.update_cooldowns)
 
     def build_ui(self) -> None:
         self.root.grid_rowconfigure(2, weight=1)
@@ -471,11 +484,53 @@ class StratagemApp:
             )
             key_label.grid(row=0, column=0, sticky="w")
 
-            icon_label = tk.Label(
-                card, bg="#0f0f12", width=64, height=64, anchor="center"
+            cooldown_label = tk.Label(
+                card,
+                text="Ready",
+                bg=CARD_BG,
+                fg=MUTED_FG,
+                font=("Segoe UI", 9, "bold"),
+                anchor="e",
             )
-            icon_label.grid(row=1, column=0, rowspan=2, padx=(0, 12), pady=6)
-            icon_label.bind("<Button-1>", lambda _e, i=index: self.open_icon_picker(i))
+            cooldown_label.grid(row=0, column=1, sticky="e")
+
+            icon_size = 64
+            canvas_size = icon_size + 8
+            icon_canvas = tk.Canvas(
+                card,
+                width=canvas_size,
+                height=canvas_size,
+                bg=CARD_BG,
+                highlightthickness=0,
+            )
+            icon_canvas.grid(row=1, column=0, rowspan=2, padx=(0, 12), pady=6)
+            icon_canvas.create_rectangle(
+                (canvas_size - icon_size) / 2,
+                (canvas_size - icon_size) / 2,
+                (canvas_size + icon_size) / 2,
+                (canvas_size + icon_size) / 2,
+                fill="#0f0f12",
+                outline="",
+            )
+            image_item = icon_canvas.create_image(
+                canvas_size / 2,
+                canvas_size / 2,
+                anchor="center",
+                image=self.stratagem_map[self.equipped[index]].icon,
+            )
+            arc_item = icon_canvas.create_arc(
+                2,
+                2,
+                canvas_size - 2,
+                canvas_size - 2,
+                start=90,
+                extent=0,
+                style="arc",
+                outline="white",
+                width=3,
+                state="hidden",
+            )
+            icon_canvas.bind("<Button-1>", lambda _e, i=index: self.open_icon_picker(i))
 
             name_label = tk.Label(
                 card,
@@ -499,11 +554,11 @@ class StratagemApp:
             seq_label.grid(row=2, column=1, sticky="w")
 
             self.sequence_labels.append(seq_label)
-            self.icon_labels.append(icon_label)
+            self.icon_canvases.append(icon_canvas)
+            self.icon_image_items.append(image_item)
+            self.icon_arc_items.append(arc_item)
             self.name_labels.append(name_label)
-            self.icon_labels[index].configure(
-                image=self.stratagem_map[self.equipped[index]].icon
-            )
+            self.cooldown_labels.append(cooldown_label)
 
         status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
         status_frame.grid(row=3, column=0, sticky="ew")
@@ -538,7 +593,14 @@ class StratagemApp:
         self.equipped[index] = name
         self.sequence_labels[index].configure(text=self.sequence_for(name))
         self.name_labels[index].configure(text=name)
-        self.icon_labels[index].configure(image=self.stratagem_map[name].icon)
+        self.icon_canvases[index].itemconfigure(
+            self.icon_image_items[index], image=self.stratagem_map[name].icon
+        )
+        self.cooldown_end[index] = 0.0
+        self.cooldown_labels[index].configure(text="Ready", fg=MUTED_FG)
+        self.icon_canvases[index].itemconfigure(
+            self.icon_arc_items[index], extent=0, state="hidden"
+        )
         self.persist_user_data()
 
     def open_icon_picker(self, index: int) -> None:
@@ -889,9 +951,52 @@ class StratagemApp:
             return
         sequence_text = " ".join(strat.sequence)
         self.status_var.set(f"Activated: {name} ({sequence_text})")
+        self.start_cooldown(index, strat)
         threading.Thread(
             target=self.send_sequence, args=(strat.sequence,), daemon=True
         ).start()
+
+    def start_cooldown(self, index: int, strat: Stratagem) -> None:
+        if not strat.cooldown_seconds:
+            return
+        self.cooldown_end[index] = time.monotonic() + strat.cooldown_seconds
+        self.icon_canvases[index].itemconfigure(
+            self.icon_arc_items[index], extent=-360, state="normal"
+        )
+
+    def format_cooldown(self, seconds: float) -> str:
+        total = int(seconds) + 1
+        if total >= 60:
+            minutes, secs = divmod(total, 60)
+            return f"{minutes}:{secs:02d}"
+        return f"{total}s"
+
+    def update_cooldowns(self) -> None:
+        now = time.monotonic()
+        for index in range(len(self.cooldown_end)):
+            end = self.cooldown_end[index]
+            remaining = end - now
+            canvas = self.icon_canvases[index]
+            arc_item = self.icon_arc_items[index]
+            if remaining <= 0:
+                if end:
+                    self.cooldown_end[index] = 0.0
+                    self.cooldown_labels[index].configure(text="Ready", fg=MUTED_FG)
+                    canvas.itemconfigure(arc_item, extent=0, state="hidden")
+                continue
+
+            strat = self.stratagem_map.get(self.equipped[index])
+            total = strat.cooldown_seconds if strat and strat.cooldown_seconds else remaining
+            self.cooldown_labels[index].configure(
+                text=self.format_cooldown(remaining), fg="#ffb454"
+            )
+            fraction_remaining = max(0.0, min(1.0, remaining / total))
+            canvas.itemconfigure(
+                arc_item, extent=-360 * fraction_remaining, state="normal"
+            )
+
+        if self.root.winfo_exists():
+            self.root.after(200, self.update_cooldowns)
 
     def send_sequence(self, sequence: list[str]) -> None:
         if os.name != "nt":
