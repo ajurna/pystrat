@@ -108,6 +108,97 @@ class Stratagem:
     icon: tk.PhotoImage
     sequence_display: str
     cooldown_seconds: int | None
+    type: str
+
+
+@dataclass
+class ShipModule:
+    id: str
+    name: str
+    location: str
+    tier: int
+    percent: float
+    types: frozenset[str]
+
+
+SHIP_MODULES: list[ShipModule] = [
+    ShipModule(
+        "streamlined_request_process",
+        "Streamlined Request Process",
+        "Patriotic Administration Center",
+        2,
+        10,
+        frozenset({"support_weapon"}),
+    ),
+    ShipModule(
+        "hand_carts",
+        "Hand Carts",
+        "Patriotic Administration Center",
+        3,
+        10,
+        frozenset({"backpack"}),
+    ),
+    ShipModule(
+        "zero_g_breech_loading",
+        "Zero-G Breech Loading",
+        "Orbital Cannons",
+        3,
+        10,
+        frozenset({"orbital"}),
+    ),
+    ShipModule(
+        "liquid_ventilated_cockpit",
+        "Liquid-Ventilated Cockpit",
+        "Hangar",
+        1,
+        50,
+        frozenset({"eagle"}),
+    ),
+    ShipModule(
+        "synthetic_supplementation",
+        "Synthetic Supplementation",
+        "Engineering Bay",
+        1,
+        10,
+        frozenset({"sentry", "emplacement", "resupply"}),
+    ),
+    ShipModule(
+        "morale_augmentation",
+        "Morale Augmentation",
+        "Bridge",
+        5,
+        5,
+        frozenset(
+            {
+                "orbital",
+                "eagle",
+                "support_weapon",
+                "backpack",
+                "sentry",
+                "emplacement",
+                "resupply",
+                "vehicle",
+                "exosuit",
+                "mission",
+            }
+        ),
+    ),
+]
+SHIP_MODULE_MAP: dict[str, ShipModule] = {module.id: module for module in SHIP_MODULES}
+
+TYPE_LABELS = {
+    "orbital": "Orbital",
+    "eagle": "Eagle",
+    "support_weapon": "Support Weapon",
+    "backpack": "Backpack",
+    "sentry": "Sentry",
+    "emplacement": "Emplacement",
+    "resupply": "Resupply",
+    "vehicle": "Vehicle",
+    "exosuit": "Exosuit",
+    "mission": "Mission",
+}
+ALL_STRATAGEM_TYPES = frozenset(TYPE_LABELS.keys())
 
 
 @dataclass
@@ -118,6 +209,7 @@ class UserData:
     presets: dict[str, list[str]]
     active_preset: str
     input_keys: str
+    ship_modules: list[str]
 
     @classmethod
     def load(cls, path: Path) -> "UserData":
@@ -129,11 +221,17 @@ class UserData:
                 presets={},
                 active_preset="",
                 input_keys="wasd",
+                ship_modules=[],
             )
         raw = json.loads(path.read_text(encoding="utf-8"))
         input_keys = raw.get("input_keys", "wasd")
         if input_keys not in ("wasd", "arrows"):
             input_keys = "wasd"
+        ship_modules = [
+            module_id
+            for module_id in raw.get("ship_modules", [])
+            if module_id in SHIP_MODULE_MAP
+        ]
         return cls(
             equipped_stratagems=raw.get("equipped_stratagems", []),
             keybinds=raw.get("keybinds", []),
@@ -141,6 +239,7 @@ class UserData:
             presets=raw.get("presets", {}),
             active_preset=raw.get("active_preset", ""),
             input_keys=input_keys,
+            ship_modules=ship_modules,
         )
 
     def to_payload(self) -> dict[str, object]:
@@ -151,6 +250,7 @@ class UserData:
             "presets": self.presets,
             "active_preset": self.active_preset,
             "input_keys": self.input_keys,
+            "ship_modules": self.ship_modules,
         }
 
     def save(self, path: Path) -> None:
@@ -176,6 +276,7 @@ def load_stratagems() -> list[Stratagem]:
                 image,
                 seq_display,
                 entry.get("cooldown_seconds"),
+                entry.get("type", "mission"),
             )
         )
     return items
@@ -282,6 +383,7 @@ class StratagemApp:
         self.presets = self.user_data.presets
         self.active_preset = self.user_data.active_preset
         self.input_keys = self.user_data.input_keys
+        self.active_ship_modules: set[str] = set(self.user_data.ship_modules)
 
         desired_keybinds = [
             {"key_code": "0x67", "letter": "NumPad7"},
@@ -416,6 +518,15 @@ class StratagemApp:
         )
         key_mode_combo.pack(side="left")
         key_mode_combo.bind("<<ComboboxSelected>>", self.on_input_keys_change)
+
+        ship_modules_frame = tk.Frame(self.root, bg=DARK_BG)
+        ship_modules_frame.grid(row=1, column=0, sticky="e", padx=20, pady=(0, 12))
+        ship_modules_button = ttk.Button(
+            ship_modules_frame,
+            text="Ship Modules...",
+            command=self.open_ship_modules_panel,
+        )
+        ship_modules_button.pack(side="left")
 
         preset_frame = tk.Frame(self.root, bg=DARK_BG)
         preset_frame.grid(row=0, column=0, sticky="e", padx=20, pady=(18, 6))
@@ -581,6 +692,7 @@ class StratagemApp:
         self.user_data.presets = dict(self.presets)
         self.user_data.active_preset = self.active_preset
         self.user_data.input_keys = self.input_keys
+        self.user_data.ship_modules = sorted(self.active_ship_modules)
         self.user_data.save(DATA_FILE)
 
     def sequence_for(self, name: str) -> str:
@@ -601,6 +713,85 @@ class StratagemApp:
         self.icon_canvases[index].itemconfigure(
             self.icon_arc_items[index], extent=0, state="hidden"
         )
+        self.persist_user_data()
+
+    def describe_ship_module(self, module: ShipModule) -> str:
+        if len(module.types) == len(ALL_STRATAGEM_TYPES):
+            scope = "all stratagems"
+        else:
+            labels = [TYPE_LABELS.get(t, t) for t in sorted(module.types)]
+            scope = ", ".join(labels) + " stratagems"
+        return f"-{module.percent:g}% cooldown for {scope}"
+
+    def open_ship_modules_panel(self) -> None:
+        panel = tk.Toplevel(self.root)
+        panel.title("Ship Modules")
+        panel.configure(bg=DARK_BG)
+        panel.transient(self.root)
+        panel.grab_set()
+        panel.geometry("480x420")
+
+        header = tk.Label(
+            panel,
+            text="Ship Modules",
+            bg=DARK_BG,
+            fg=TEXT_FG,
+            font=("Segoe UI", 14, "bold"),
+        )
+        header.pack(pady=(16, 4))
+
+        subtitle = tk.Label(
+            panel,
+            text="Tick the upgrades you have unlocked to see accurate cooldowns.",
+            bg=DARK_BG,
+            fg=MUTED_FG,
+            font=("Segoe UI", 9),
+        )
+        subtitle.pack(pady=(0, 12))
+
+        container = tk.Frame(panel, bg=DARK_BG)
+        container.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+
+        locations: dict[str, list[ShipModule]] = {}
+        for module in SHIP_MODULES:
+            locations.setdefault(module.location, []).append(module)
+
+        for location, modules in locations.items():
+            loc_label = tk.Label(
+                container,
+                text=location,
+                bg=DARK_BG,
+                fg=MUTED_FG,
+                font=("Segoe UI", 10, "bold"),
+                anchor="w",
+            )
+            loc_label.pack(fill="x", pady=(8, 2))
+
+            for module in sorted(modules, key=lambda m: m.tier):
+                var = tk.BooleanVar(value=module.id in self.active_ship_modules)
+                check = tk.Checkbutton(
+                    container,
+                    text=f"T{module.tier}  {module.name}  —  {self.describe_ship_module(module)}",
+                    variable=var,
+                    bg=DARK_BG,
+                    fg=TEXT_FG,
+                    activebackground=DARK_BG,
+                    activeforeground=TEXT_FG,
+                    selectcolor=CARD_BG,
+                    anchor="w",
+                    font=("Segoe UI", 9),
+                    command=lambda m=module, v=var: self.on_ship_module_toggle(m, v),
+                )
+                check.pack(fill="x", anchor="w")
+
+        close_button = ttk.Button(panel, text="Close", command=panel.destroy)
+        close_button.pack(pady=(0, 16))
+
+    def on_ship_module_toggle(self, module: ShipModule, var: tk.BooleanVar) -> None:
+        if var.get():
+            self.active_ship_modules.add(module.id)
+        else:
+            self.active_ship_modules.discard(module.id)
         self.persist_user_data()
 
     def open_icon_picker(self, index: int) -> None:
@@ -956,10 +1147,22 @@ class StratagemApp:
             target=self.send_sequence, args=(strat.sequence,), daemon=True
         ).start()
 
-    def start_cooldown(self, index: int, strat: Stratagem) -> None:
+    def effective_cooldown(self, strat: Stratagem) -> float | None:
         if not strat.cooldown_seconds:
+            return None
+        total_percent = sum(
+            module.percent
+            for module_id, module in SHIP_MODULE_MAP.items()
+            if module_id in self.active_ship_modules and strat.type in module.types
+        )
+        multiplier = max(0.05, 1 - total_percent / 100)
+        return strat.cooldown_seconds * multiplier
+
+    def start_cooldown(self, index: int, strat: Stratagem) -> None:
+        cooldown = self.effective_cooldown(strat)
+        if not cooldown:
             return
-        self.cooldown_end[index] = time.monotonic() + strat.cooldown_seconds
+        self.cooldown_end[index] = time.monotonic() + cooldown
         self.icon_canvases[index].itemconfigure(
             self.icon_arc_items[index], extent=-360, state="normal"
         )
@@ -986,7 +1189,8 @@ class StratagemApp:
                 continue
 
             strat = self.stratagem_map.get(self.equipped[index])
-            total = strat.cooldown_seconds if strat and strat.cooldown_seconds else remaining
+            effective = strat and self.effective_cooldown(strat)
+            total = effective if effective else remaining
             self.cooldown_labels[index].configure(
                 text=self.format_cooldown(remaining), fg="#ffb454"
             )
