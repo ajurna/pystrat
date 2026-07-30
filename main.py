@@ -369,7 +369,7 @@ class StratagemApp:
         icon_path = RESOURCE_DIR / "app.ico"
         if icon_path.exists():
             self.root.iconbitmap(default=str(icon_path))
-        self.root.geometry("820x540")
+        self.root.geometry("960x540")
 
         self.stratagems = load_stratagems()
         self.stratagem_map = {item.name: item for item in self.stratagems}
