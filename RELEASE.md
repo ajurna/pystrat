@@ -1,4 +1,2 @@
 ## Changes
-- bump deps
-- added stratagems
-- added cooldown indicators and options.
+- fix M-103 Supply FRV stratagem keys
