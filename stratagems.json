@@ -65,6 +65,7 @@
 
   {"name": "Cremator", "sequence": ["S", "S", "D", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Bullet Storm", "sequence": ["S", "A", "S", "D", "W", "A"], "category": "Supply", "cooldown_seconds": 70, "type": "support_weapon"},
+  {"name": "Meltagun", "sequence": ["S", "A", "W", "A", "A", "S"], "category": "Supply", "cooldown_seconds": 410, "type": "support_weapon"},
 
   {"name": "Lumberer Exosuit", "sequence": ["A", "S", "D", "W", "D", "A", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
   {"name": "Breakthrough Exosuit", "sequence": ["A", "S", "D", "A", "D", "S", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
