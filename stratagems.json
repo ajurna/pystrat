@@ -58,7 +58,7 @@
   {"name": "Guard Dog AR-23", "sequence": ["S", "W", "A", "W", "D", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Guard Dog Rover", "sequence": ["S", "W", "A", "W", "D", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "W", "S", "W"], "category": "Supply", "cooldown_seconds": 780, "type": "vehicle"},
-  {"name": "Supply FRV", "sequence": ["A", "S", "A", "A", "S", "W", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "vehicle"},
+  {"name": "Supply FRV", "sequence": ["A", "S", "A", "A", "S", "W", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "vehicle"},
   {"name": "Fast Recon Vehicle", "sequence": ["A", "S", "D", "S", "D", "S", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "vehicle"},
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
