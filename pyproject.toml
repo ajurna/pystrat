@@ -1,6 +1,6 @@
 [project]
 name = "pystrat"
-version = "1.2.3"
+version = "1.2.4"
 description = "Stratagem Pick for Helldivers 2 inspired by hellbuddy"
 requires-python = ">=3.13"
 dependencies = [

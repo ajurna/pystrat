@@ -16,6 +16,7 @@
   {"name": "Eagle 110mm Rocket Pods", "sequence": ["W", "D", "W", "A"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
   {"name": "Eagle Airstrike", "sequence": ["W", "D", "S", "D"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
   {"name": "Eagle Cluster Bomb", "sequence": ["W", "D", "S", "S", "D"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
+  {"name": "Eagle Gas Airstrike", "sequence": ["W", "D", "A", "D"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
   {"name": "Eagle Napalm Airstrike", "sequence": ["W", "D", "S", "W"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
   {"name": "Eagle Smoke Strike", "sequence": ["W", "D", "W", "S"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
 
@@ -30,6 +31,7 @@
   {"name": "Anti-Materiel Rifle", "sequence": ["S", "A", "D", "W", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Epoch", "sequence": ["S", "A", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Grenade Launcher", "sequence": ["S", "A", "W", "A", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Meltagun", "sequence": ["S", "A", "W", "A", "A", "S"], "category": "Supply", "cooldown_seconds": 410, "type": "support_weapon"},
   {"name": "Flamethrower", "sequence": ["S", "A", "W", "S", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Laser Cannon", "sequence": ["S", "A", "S", "W", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Quasar Cannon", "sequence": ["S", "S", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
@@ -42,11 +44,16 @@
   {"name": "Autocannon", "sequence": ["S", "A", "S", "W", "W", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Airburst Rocket Launcher", "sequence": ["S", "W", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Spear", "sequence": ["S", "S", "W", "S", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Cremator", "sequence": ["S", "S", "D", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "W.A.S.P Launcher", "sequence": ["S", "S", "W", "S", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Maxigun", "sequence": ["S", "A", "D", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Recoilless Rifle", "sequence": ["S", "A", "D", "D", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Bullet Storm", "sequence": ["S", "A", "S", "D", "W", "A"], "category": "Supply", "cooldown_seconds": 70, "type": "support_weapon"},
+  {"name": "Steriliser", "sequence": ["S", "A", "W", "S", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "De-Escalator", "sequence": ["S", "D", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+
+  {"name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Supply Pack", "sequence": ["S", "A", "S", "W", "W", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Warp Pack", "sequence": ["S", "A", "D", "S", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Hover Pack", "sequence": ["S", "W", "W", "S", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
@@ -57,18 +64,18 @@
   {"name": "Guard Dog Hot Dog", "sequence": ["S", "W", "A", "W", "A", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Guard Dog AR-23", "sequence": ["S", "W", "A", "W", "D", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Guard Dog Rover", "sequence": ["S", "W", "A", "W", "D", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
+  {"name": "Guard Dog Dog Breath", "sequence": ["S", "W", "A", "W", "D", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
+  {"name": "Guard Dog ARC-3", "sequence": ["S", "W", "A", "W", "D", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
+  {"name": "Portable Hellbomb", "sequence": ["S", "D", "W", "W", "W"], "category": "Supply", "cooldown_seconds": 300, "type": "backpack"},
+
   {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "W", "S", "W"], "category": "Supply", "cooldown_seconds": 780, "type": "vehicle"},
   {"name": "Supply FRV", "sequence": ["A", "S", "A", "A", "S", "W", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "vehicle"},
   {"name": "Fast Recon Vehicle", "sequence": ["A", "S", "D", "S", "D", "S", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "vehicle"},
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
-
-  {"name": "Cremator", "sequence": ["S", "S", "D", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "Bullet Storm", "sequence": ["S", "A", "S", "D", "W", "A"], "category": "Supply", "cooldown_seconds": 70, "type": "support_weapon"},
-  {"name": "Meltagun", "sequence": ["S", "A", "W", "A", "A", "S"], "category": "Supply", "cooldown_seconds": 410, "type": "support_weapon"},
-
   {"name": "Lumberer Exosuit", "sequence": ["A", "S", "D", "W", "D", "A", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
   {"name": "Breakthrough Exosuit", "sequence": ["A", "S", "D", "A", "D", "S", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
+
 
   {"name": "Gatling Sentry", "sequence": ["S", "W", "D", "A"], "category": "Defensive", "cooldown_seconds": 150, "type": "sentry"},
   {"name": "Machine Gun Sentry", "sequence": ["S", "W", "D", "D", "W"], "category": "Defensive", "cooldown_seconds": 90, "type": "sentry"},
@@ -77,6 +84,7 @@
   {"name": "Rocket Sentry", "sequence": ["S", "W", "D", "D", "A"], "category": "Defensive", "cooldown_seconds": 150, "type": "sentry"},
   {"name": "Autocannon Sentry", "sequence": ["S", "W", "D", "W", "A", "W"], "category": "Defensive", "cooldown_seconds": 150, "type": "sentry"},
   {"name": "EMS Mortar Sentry", "sequence": ["S", "W", "D", "S", "D"], "category": "Defensive", "cooldown_seconds": 180, "type": "sentry"},
+  {"name": "Gas Mortar Sentry", "sequence": ["S", "W", "D", "D", "A"], "category": "Defensive", "cooldown_seconds": 180, "type": "sentry"},
   {"name": "Mortar Sentry", "sequence": ["S", "W", "D", "D", "S"], "category": "Defensive", "cooldown_seconds": 180, "type": "sentry"},
 
   {"name": "Shield Generator Relay", "sequence": ["S", "S", "A", "D", "A", "D"], "category": "Defensive", "cooldown_seconds": 90, "type": "emplacement"},
@@ -88,20 +96,9 @@
   {"name": "Gas Mines", "sequence": ["S", "A", "A", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
   {"name": "Anti-Personnel Minefield", "sequence": ["S", "A", "W", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
   {"name": "Incendiary Mines", "sequence": ["S", "A", "A", "S"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
-  {"name": "Gas Mortar Sentry", "sequence": ["S", "W", "D", "D", "A"], "category": "Defensive", "cooldown_seconds": 180, "type": "sentry"},
-
-  {"name": "Steriliser", "sequence": ["S", "A", "W", "S", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "Guard Dog Dog Breath", "sequence": ["S", "W", "A", "W", "D", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
-  {"name": "Portable Hellbomb", "sequence": ["S", "D", "W", "W", "W"], "category": "Supply", "cooldown_seconds": 300, "type": "backpack"},
-
-
-  {"name": "De-Escalator", "sequence": ["S", "D", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "Guard Dog ARC-3", "sequence": ["S", "W", "A", "W", "D", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
-
 
 
   {"name": "Eagle Rearm", "sequence": ["W", "W", "A", "W", "D"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
-
   {"name": "Resupply", "sequence": ["S", "S", "W", "D"], "category": "General", "cooldown_seconds": 180, "type": "resupply"},
   {"name": "Reinforce", "sequence": ["W", "S", "D", "A", "W"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
   {"name": "SoS Beacon", "sequence": ["W", "S", "D", "W"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
