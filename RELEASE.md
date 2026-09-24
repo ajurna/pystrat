@@ -1,3 +1,2 @@
 ## Changes
-- Added Eagle Gas Airstrike
-- Reordered Stratagems
+- Added TD-110 Maelstrom
