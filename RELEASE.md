@@ -1,2 +1,4 @@
 ## Changes
-- Added TD-110 Maelstrom
+- Added LAS-44 Nova
+- Added AMW-20 Apex
+- Bumped deps

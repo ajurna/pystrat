@@ -1,12 +1,12 @@
 [project]
 name = "pystrat"
-version = "1.2.5"
+version = "1.2.6"
 description = "Stratagem Pick for Helldivers 2 inspired by hellbuddy"
 requires-python = ">=3.13"
 dependencies = [
-    "pillow>=12.3.0",
-    "svglib>=2.2.0",
-    "reportlab>=5.0.0",
+    "pillow>=13.0.0",
+    "svglib>=2.3.1",
+    "reportlab>=5.1.0",
     "rlpycairo>=0.4.0",
 ]
 

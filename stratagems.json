@@ -52,6 +52,8 @@
   {"name": "Bullet Storm", "sequence": ["S", "A", "S", "D", "W", "A"], "category": "Supply", "cooldown_seconds": 70, "type": "support_weapon"},
   {"name": "Steriliser", "sequence": ["S", "A", "W", "S", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "De-Escalator", "sequence": ["S", "D", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Apex", "sequence": ["S", "A", "A", "W", "S", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Nova", "sequence": ["S", "A", "D", "S", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
 
   {"name": "C4 Pack", "sequence": ["S", "D", "W", "W", "D", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
   {"name": "Supply Pack", "sequence": ["S", "A", "S", "W", "W", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "backpack"},
