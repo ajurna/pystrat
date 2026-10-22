@@ -5,15 +5,16 @@ import queue
 import sys
 import threading
 import time
+import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
-from reportlab.graphics import renderPM
-from svglib.svglib import svg2rlg
+from tkinter import messagebox, simpledialog, ttk
 from tomllib import load as toml_load
 
-import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from reportlab.graphics import renderPM
+from svglib.svglib import svg2rlg
+
 # Icons and stratagem info.
 # https://github.com/nvigneux/Helldivers-2-Stratagems-icons-svg
 # https://helldivers.wiki.gg/wiki/Category:Stratagems
@@ -336,7 +337,7 @@ class HotkeyManager:
 
     def stop(self) -> None:
         if self.thread_id is not None:
-            post_thread_message = getattr(self.user32, "PostThreadMessageW")
+            post_thread_message = self.user32.PostThreadMessageW
             post_thread_message(self.thread_id, WM_QUIT, 0, 0)
         if self.thread:
             self.thread.join(timeout=1)
