@@ -19,6 +19,7 @@
   {"name": "Eagle Gas Airstrike", "sequence": ["W", "D", "A", "D"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
   {"name": "Eagle Napalm Airstrike", "sequence": ["W", "D", "S", "W"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
   {"name": "Eagle Smoke Strike", "sequence": ["W", "D", "W", "S"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
+  {"name": "Eagle Fly By", "sequence": ["W", "S", "S", "W", "W", "S", "S", "W", "W"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
 
   {"name": "Defoliation Tool", "sequence": ["S", "A", "D", "D", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "CQC-20", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
