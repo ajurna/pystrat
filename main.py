@@ -178,6 +178,7 @@ SHIP_MODULES: list[ShipModule] = [
                 "sentry",
                 "emplacement",
                 "resupply",
+                "tank",
                 "vehicle",
                 "exosuit",
                 "mission",
@@ -195,6 +196,7 @@ TYPE_LABELS = {
     "sentry": "Sentry",
     "emplacement": "Emplacement",
     "resupply": "Resupply",
+    "tank": "Tank",
     "vehicle": "Vehicle",
     "exosuit": "Exosuit",
     "mission": "Mission",
@@ -266,6 +268,28 @@ def load_stratagems() -> list[Stratagem]:
     for entry in raw:
         category = entry.get("category", "general")
         svg_path = ICON_DIR / f"{entry['name']}.svg"
+        if not Path(svg_path).exists():
+            if entry["type"] == "orbital":
+                svg_path = ICON_DIR / "Orbital Fallback.svg"
+            elif entry["type"] == "eagle":
+                svg_path = ICON_DIR / "Eagle Fallback.svg"
+            elif entry["type"] == "mission":
+                svg_path = ICON_DIR / "Mission Fallback.svg"
+            elif entry["type"] == "backpack":
+                svg_path = ICON_DIR / "Backpack Fallback.svg"
+            elif entry["type"] == "support_weapon":
+                svg_path = ICON_DIR / "Support Weapon Fallback.svg"
+            elif entry["type"] == "sentry":
+                svg_path = ICON_DIR / "Sentry Fallback.svg"
+            elif entry["type"] == "tank":
+                svg_path = ICON_DIR / "Tank Fallback.svg"
+            elif entry["type"] == "vehicle":
+                svg_path = ICON_DIR / "Vehicle Fallback.svg"
+            elif entry["type"] == "exosuit":
+                svg_path = ICON_DIR / "Exosuit Fallback.svg"
+            elif entry["type"] == "emplacement":
+                svg_path = ICON_DIR / "Emplacement Fallback.svg"
+
         png = render_svg_to_png_bytes(svg_path, 64)
         image = tk.PhotoImage(data=png)
         seq_display = " ".join(arrows.get(step.upper(), step) for step in entry["sequence"])
