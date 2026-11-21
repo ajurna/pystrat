@@ -37,6 +37,7 @@ DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
 TEXT_FG = "#f1f1f3"
 MUTED_FG = "#a2a2ad"
+AMBER = "#ffb454"
 SCROLLBAR_BG = "#2a2a33"
 SCROLLBAR_ACTIVE_BG = "#343441"
 
@@ -336,6 +337,11 @@ def parse_key_code(code: str) -> int:
 
 def clamp_delay_ms(value: int) -> int:
     return max(10, min(300, value))
+
+
+def numlock_on() -> bool:
+    # GetKeyState low bit is the toggle state, not the pressed state.
+    return bool(ctypes.windll.user32.GetKeyState(0x90) & 1)
 
 
 def is_usable_keybind(entry: object, letters: set[str]) -> bool:
@@ -767,6 +773,19 @@ class StratagemApp:
         status_frame = tk.Frame(self.root, bg=CARD_BG, height=28)
         status_frame.grid(row=3, column=0, sticky="ew")
         status_frame.pack_propagate(False)
+        self.status_frame = status_frame
+        # The numpad hotkeys only work with Num Lock on, so the bar goes amber while it is off.
+        self.numlock_label = None
+        if os.name == "nt":
+            self.numlock_label = tk.Label(
+                status_frame,
+                text="",
+                bg=CARD_BG,
+                fg=TEXT_FG,
+                font=("Segoe UI", 9, "bold"),
+                padx=12,
+            )
+            self.numlock_label.pack(side="right")
         status = tk.Label(
             status_frame,
             textvariable=self.status_var,
@@ -777,6 +796,7 @@ class StratagemApp:
             padx=12,
         )
         status.pack(fill="both", expand=True)
+        self.status_label = status
 
     def persist_user_data(self) -> None:
         self.user_data.equipped_stratagems = list(self.equipped)
@@ -1276,6 +1296,13 @@ class StratagemApp:
 
     def update_cooldowns(self) -> None:
         now = time.monotonic()
+        if self.numlock_label is not None:
+            off = not numlock_on()
+            bg = AMBER if off else CARD_BG
+            fg = DARK_BG if off else TEXT_FG
+            self.numlock_label.configure(text="" if not off else "Num Lock off", bg=bg, fg=fg)
+            self.status_frame.configure(bg=bg)
+            self.status_label.configure(bg=bg, fg=fg)
         for index in range(len(self.cooldown_end)):
             end = self.cooldown_end[index]
             remaining = end - now
@@ -1292,7 +1319,7 @@ class StratagemApp:
             effective = strat and self.effective_cooldown(strat)
             total = effective if effective else remaining
             self.cooldown_labels[index].configure(
-                text=self.format_cooldown(remaining), fg="#ffb454"
+                text=self.format_cooldown(remaining), fg=AMBER
             )
             fraction_remaining = max(0.0, min(1.0, remaining / total))
             canvas.itemconfigure(

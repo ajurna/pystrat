@@ -18,7 +18,7 @@ pystrat sends the stratagem sequence as synthetic keystrokes (`SendInput`). Chec
 
 ## Using it
 1. Click a slot's icon or name to open the picker, then search or browse by category and click a stratagem to assign it.
-2. Press the matching numpad key (NumPad 7/8/9 is the top row, 4/5/6 the middle, 1/2/3 the bottom) with Num Lock on to send that stratagem's sequence to the game.
+2. Press the matching numpad key (NumPad 7/8/9 is the top row, 4/5/6 the middle, 1/2/3 the bottom) with Num Lock on to send that stratagem's sequence to the game - the status bar turns amber and shows `Num Lock off` while it is off.
 3. Set **Key Delay** higher if the game misses inputs, and switch **Input Keys** between WASD and Arrows to match your in-game stratagem controls.
 4. Use the **Preset** box to save your current loadout, save it under a new name, or delete it.
 

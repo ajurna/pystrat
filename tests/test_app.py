@@ -92,6 +92,7 @@ class FakeUser32:
         # Flags whose SendInput should report failure (0) or raise.
         self.failing: set[int] = set()
         self.raising: set[int] = set()
+        self.numlock = True
         # Plain functions (not methods): send_sequence assigns .argtypes/.restype on them.
         self.SendInput = lambda count, inp, size: self.record(count, inp)
         self.MapVirtualKeyW = lambda vk, flags: vk
@@ -100,6 +101,7 @@ class FakeUser32:
         self.PeekMessageW = lambda *a: 0
         self.PostThreadMessageW = lambda *a: 0
         self.GetMessageW = lambda *a: 0
+        self.GetKeyState = lambda vk: 1 if self.numlock else 0
 
     def record(self, count, inp):
         flags = int(inp.union.ki.dwFlags)
@@ -627,6 +629,29 @@ class StratagemAppTest(unittest.TestCase):
         self.assertEqual(app.format_cooldown(3.2), "4s")
         # A whole second must not round up to the next one.
         self.assertEqual(app.format_cooldown(12.0), "12s")
+
+    def test_status_bar_goes_amber_while_numlock_is_off(self):
+        app = self.build()
+
+        self.user32.numlock = False
+        app.update_cooldowns()
+        self.assertEqual(app.numlock_label.cget("text"), "Num Lock off")
+        self.assertEqual(app.status_frame.cget("bg"), main.AMBER)
+        self.assertEqual(app.status_label.cget("bg"), main.AMBER)
+        self.assertEqual(app.numlock_label.cget("fg"), main.DARK_BG)
+        self.assertEqual(app.status_label.cget("fg"), main.DARK_BG)
+
+        self.user32.numlock = True
+        app.update_cooldowns()
+        self.assertEqual(app.numlock_label.cget("text"), "")
+        self.assertEqual(app.status_frame.cget("bg"), main.CARD_BG)
+        self.assertEqual(app.status_label.cget("bg"), main.CARD_BG)
+        self.assertEqual(app.status_label.cget("fg"), main.TEXT_FG)
+
+    def test_numlock_indicator_is_absent_off_windows(self):
+        with mock.patch.object(os, "name", "posix"):
+            app = self.build()
+        self.assertIsNone(app.numlock_label)
 
     def test_update_cooldowns(self):
         app = self.build()
