@@ -1,4 +1,6 @@
 ## Changes
 - Renamed six stratagems to their in-game names: Arc Thrower, Leveller, Belt-Fed Grenade Launcher, Breaching Hammer, Maelstrom, Tesla Tower. Old names in saved settings are migrated on launch, and their icons were renamed to match.
 - Added five mission-only stratagems with codes and icons: Aquifer Drill, Portable Comms Relay, Activate E-711 Extraction Drill, Tactical Video Camera, Link Hellpods to Destroyer.
-- Added tests for saved-name migration and fallback icons.
+- Added tests for saved-name migration, fallback icons, and the new error paths.
+- Fixed crashes and silent failures: an unreadable settings file now starts the app with defaults, shows an error, and offers to start fresh (keeping the bad file as `user_data.json.bak`); bad settings values are corrected on launch and listed in the status bar (Key Delay clamped to 10-300 ms, keybind entries without a known numpad key or hex key code dropped, names not in `stratagems.json` dropped); unrenderable SVGs no longer stop startup; `SendInput` failures are reported instead of printing a false "Activated", and Ctrl is released even when a send fails; pressing a hotkey while a sequence is still typing is refused; picker mouse-wheel handlers no longer run on a closed window; hotkey loop errors are recorded instead of ending the loop silently.
+- `release.py` runs in the repo directory, refuses a dirty working tree or an existing tag, and creates the release before pushing the tag.
