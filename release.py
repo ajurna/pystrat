@@ -41,14 +41,15 @@ def main() -> None:
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write(exe_path, exe_path.name)
 
-    # One artifact: the zip, because people find zips easier to download past AV.
+    # Both artifacts: the exe, and a zip of it for people whose AV blocks a bare .exe.
+    subprocess.run(["git", "tag", tag, "-m", tag], check=True, cwd=root)
+    # Push before the release so the remote tag points at the tree that was built, not at GitHub's HEAD.
+    subprocess.run(["git", "push", "origin", tag], check=True, cwd=root)
     subprocess.run(
-        ["gh", "release", "create", tag, str(zip_path), "-t", tag, "-n", release_notes],
+        ["gh", "release", "create", tag, str(exe_path), str(zip_path), "-t", tag, "-n", release_notes],
         check=True,
         cwd=root,
     )
-    # Create first so a failed upload cannot leave an orphan tag on GitHub.
-    subprocess.run(["git", "push", "origin", tag], check=True, cwd=root)
 
 
 if __name__ == "__main__":
