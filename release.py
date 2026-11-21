@@ -27,6 +27,12 @@ def main() -> None:
         raise SystemExit("Working tree is dirty - commit before releasing.")
     if subprocess.run(["git", "rev-parse", "-q", "--verify", tag], cwd=root, check=False).returncode == 0:
         raise SystemExit(f"Tag {tag} already exists")
+    # GitHub keeps the tag when you delete a release, so a re-run needs the tag deleted first.
+    remote = subprocess.run(
+        ["git", "ls-remote", "--tags", "origin", tag], cwd=root, capture_output=True, check=True
+    ).stdout.strip()
+    if remote:
+        raise SystemExit(f"Tag {tag} already exists on origin ({remote.split()[0][:7]}) - delete it before re-releasing.")
 
     release_notes = (root / "RELEASE.md").read_text()
     build_exe.clean()
