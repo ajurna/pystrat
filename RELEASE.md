@@ -1,4 +1,4 @@
-## Changes
+## 1.3.0
 - Renamed six stratagems to their in-game names: Arc Thrower, Leveller, Belt-Fed Grenade Launcher, Breaching Hammer, Maelstrom, Tesla Tower. Old names in saved settings are migrated on launch, and their icons were renamed to match.
 - Added five mission-only stratagems with codes and icons: Aquifer Drill, Portable Comms Relay, Activate E-711 Extraction Drill, Tactical Video Camera, Link Hellpods to Destroyer.
 - Added tests for saved-name migration, fallback icons, and the new error paths.
@@ -6,6 +6,6 @@
 - Cooldown text no longer shows one second more than is left, and the icon arc now reflects the armed cooldown instead of staying full for entries without one.
 - A change writes the settings file once; a preset click used to write it ten times.
 - The `pyproject.toml` handle is closed after reading the version.
-- `release.py` runs in the repo directory, refuses a dirty working tree or an existing tag, and creates the release before pushing the tag.
-- `build_exe.py` no longer passes the redundant `--hidden-import tkinter` flags, `clean()` clears `dist/` too, and a release uploads one artifact instead of the exe plus a zip of the same exe.
+- `release.py` runs in the repo directory, refuses a dirty working tree or an existing local or remote tag, pushes the tag, then creates the release.
+- `build_exe.py` no longer passes the redundant `--hidden-import tkinter` flags, `clean()` clears `dist/` too, and a release uploads the exe plus a zip of it for people whose AV blocks a bare `.exe`.
 - The status bar turns amber and shows `Num Lock off` while Num Lock is off, because the numpad hotkeys only fire with it on.
