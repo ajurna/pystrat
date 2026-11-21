@@ -44,6 +44,11 @@ class FallbackIconFilesTest(unittest.TestCase):
                 self.assertIsNotNone(png)
                 self.assertTrue(png.startswith(PNG_SIGNATURE))
 
+    def test_render_failure_returns_none(self):
+        broken = mock.Mock(side_effect=RuntimeError("no PNG backend"))
+        with mock.patch.object(main.renderPM, "drawToString", broken):
+            self.assertIsNone(main.render_svg_to_png_bytes(main.ICON_DIR / "Orbital Fallback.svg", 64))
+
     def test_unparseable_svg_returns_none(self):
         with mock.patch.object(main, "svg2rlg", lambda _path: None):
             self.assertIsNone(main.render_svg_to_png_bytes(main.ICON_DIR / "Orbital Fallback.svg", 64))
@@ -61,16 +66,22 @@ class FallbackIconSelectionTest(unittest.TestCase):
         self.stratagems_file = self.tmp / "stratagems.json"
 
         self.rendered: list[Path] = []
+        self.photo_calls: list[dict] = []
+        self.render_result = b"png"
 
         def fake_render(svg_path, size):
             self.rendered.append(Path(svg_path))
-            return b"png"
+            return self.render_result
+
+        def fake_photo_image(**kwargs):
+            self.photo_calls.append(kwargs)
+            return "image"
 
         for patcher in (
             mock.patch.object(main, "ICON_DIR", self.icon_dir),
             mock.patch.object(main, "STRATAGEMS_FILE", self.stratagems_file),
             mock.patch.object(main, "render_svg_to_png_bytes", fake_render),
-            mock.patch.object(main.tk, "PhotoImage"),
+            mock.patch.object(main.tk, "PhotoImage", fake_photo_image),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -94,6 +105,11 @@ class FallbackIconSelectionTest(unittest.TestCase):
         (self.icon_dir / "Has Icon.svg").write_text("<svg/>", encoding="utf-8")
         self.load([self.entry("Has Icon", "orbital")])
         self.assertEqual(self.rendered, [self.icon_dir / "Has Icon.svg"])
+
+    def test_unrenderable_svg_uses_blank_placeholder(self):
+        self.render_result = None
+        self.load([self.entry("Bad SVG", "orbital")])
+        self.assertEqual(self.photo_calls, [{"width": 64, "height": 64}])
 
     def test_fallback_is_chosen_per_entry(self):
         (self.icon_dir / "Has Icon.svg").write_text("<svg/>", encoding="utf-8")

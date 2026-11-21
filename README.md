@@ -32,5 +32,10 @@ Settings, presets, keybinds, input mode, and ship modules are saved to:
 ```
 Delete this file to reset everything.
 
+### Bad values
+Values the app cannot use are corrected at startup and listed in the status bar: Key Delay is clamped to 10-300 ms, keybind entries without a known numpad key or a hex key code are dropped, and names that are not in `stratagems.json` (equipped slots, preset slots, and the active preset) are dropped. Corrected values are saved the next time you change something in the UI.
+
+If the file cannot be read at all, the app starts with defaults and never writes to it, and asks whether to start fresh - that keeps the unreadable file as `user_data.json.bak`.
+
 ## Building from source
 See [BUILD.md](BUILD.md) for running from source, building the exe, releasing, and adding stratagems.

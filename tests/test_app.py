@@ -89,6 +89,9 @@ class FakeUser32:
 
     def __init__(self):
         self.sent = []
+        # Flags whose SendInput should report failure (0) or raise.
+        self.failing: set[int] = set()
+        self.raising: set[int] = set()
         # Plain functions (not methods): send_sequence assigns .argtypes/.restype on them.
         self.SendInput = lambda count, inp, size: self.record(count, inp)
         self.MapVirtualKeyW = lambda vk, flags: vk
@@ -99,8 +102,11 @@ class FakeUser32:
         self.GetMessageW = lambda *a: 0
 
     def record(self, count, inp):
-        self.sent.append((int(inp.union.ki.wVk), int(inp.union.ki.dwFlags)))
-        return count
+        flags = int(inp.union.ki.dwFlags)
+        self.sent.append((int(inp.union.ki.wVk), flags))
+        if flags in self.raising:
+            raise RuntimeError("SendInput rejected the key")
+        return 0 if flags in self.failing else count
 
 
 class SyncThread:
@@ -187,13 +193,103 @@ class StratagemAppTest(unittest.TestCase):
         app = self.build(payload)
 
         self.assertEqual([entry["letter"] for entry in app.keybinds], DESIRED_LETTERS)
-        self.assertIn("Ghost Name", app.stratagem_names)
+        # Names without an icon and a sequence are dropped, not added to the picker.
+        self.assertNotIn("Ghost Name", app.stratagem_names)
         self.assertEqual(app.equipped, FIXTURE_NAMES)
         self.assertEqual(app.key_delay_ms, 55)
         self.assertEqual(app.input_keys, "arrows")
         self.assertEqual(app.active_ship_modules, {"hand_carts"})
         self.assertEqual(app.preset_var.get(), "loadout")
+        self.assertEqual(
+            app.status_var.get(),
+            "Fixed settings: dropped unknown ship modules, dropped unknown equipped names",
+        )
+        # Fixes are only written back on the next change.
+        app.persist_user_data()
         self.assertEqual(self.saved()["ship_modules"], ["hand_carts"])
+
+    def test_corrupt_settings_are_not_overwritten(self):
+        self.data_file.write_text("{ not json", encoding="utf-8")
+        app = self.build()
+
+        self.assertEqual(
+            app.status_var.get(),
+            "user_data.json is corrupt - using defaults, nothing is saved.",
+        )
+        self.assertEqual(self.data_file.read_text(encoding="utf-8"), "{ not json")
+        self.assertEqual(app.equipped, FIXTURE_NAMES)
+
+    def test_out_of_range_delay_is_clamped(self):
+        app = self.build({"key_delay_ms": 5000})
+        self.assertEqual(app.key_delay_ms, 300)
+        self.assertEqual(app.status_var.get(), "Fixed settings: key delay 5000 -> 300")
+
+    def test_unusable_keybind_entries_are_dropped(self):
+        app = self.build(
+            {"keybinds": [{"key_code": "zz", "letter": "NumPad1"}, {"letter": "NumPad2"}]}
+        )
+        self.assertEqual([entry["letter"] for entry in app.keybinds], DESIRED_LETTERS)
+        self.assertEqual(
+            app.status_var.get(),
+            "Fixed settings: dropped unusable keybind entries",
+        )
+
+    def test_unknown_preset_slots_are_dropped(self):
+        app = self.build({"presets": {"A": ["Shield", "Ghost"]}, "active_preset": "A"})
+        self.assertEqual(app.presets, {"A": ["Shield"]})
+        self.assertEqual(
+            app.status_var.get(),
+            "Fixed settings: dropped unknown preset slots",
+        )
+
+    def test_empty_preset_and_stale_active_preset_are_dropped(self):
+        app = self.build({"presets": {"A": ["Ghost"]}, "active_preset": "A"})
+        self.assertEqual(app.presets, {})
+        self.assertEqual(app.active_preset, "")
+        self.assertEqual(
+            app.status_var.get(),
+            "Fixed settings: dropped unknown preset slots, active preset 'A' no longer exists",
+        )
+
+    def test_reset_corrupt_settings_keeps_the_bad_file(self):
+        self.data_file.write_text("{ not json", encoding="utf-8")
+        app = self.build()
+
+        app.reset_corrupt_settings()
+
+        backup = Path(str(self.data_file) + ".bak")
+        self.assertEqual(backup.read_text(encoding="utf-8"), "{ not json")
+        self.assertFalse(app.user_data.corrupt)
+        self.assertEqual(self.saved()["equipped_stratagems"], FIXTURE_NAMES)
+        self.addCleanup(lambda: backup.unlink(missing_ok=True))
+
+    def test_reset_corrupt_settings_reports_a_failed_backup(self):
+        self.data_file.write_text("{ not json", encoding="utf-8")
+        app = self.build()
+        backup = Path(str(self.data_file) + ".bak")
+
+        with mock.patch.object(Path, "rename", mock.Mock(side_effect=OSError("permission denied"))):
+            app.reset_corrupt_settings()
+
+        self.assertEqual(app.status_var.get(), f"Could not move {backup.name}: permission denied")
+        self.assertTrue(app.user_data.corrupt)
+        self.addCleanup(lambda: backup.unlink(missing_ok=True))
+
+    def test_main_offers_to_start_fresh_on_corrupt_settings(self):
+        mainloop = mock.Mock()
+        app = mock.Mock()
+        app.user_data.corrupt = True
+        for patcher in (
+            mock.patch.object(tk, "Tk", lambda *_a, **_k: self.root),
+            mock.patch.object(tk.Tk, "mainloop", mainloop),
+            mock.patch.object(main, "StratagemApp", mock.Mock(return_value=app)),
+            mock.patch.object(main.messagebox, "askyesno", return_value=True),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        main.main()
+        app.reset_corrupt_settings.assert_called_once()
 
     def test_sequence_for_unknown_name(self):
         app = self.build()
@@ -311,6 +407,35 @@ class StratagemAppTest(unittest.TestCase):
         self.assertTrue(app.suppress_picker_scroll_capture)
         app._restore_picker_scroll_capture(False)
         self.assertFalse(app.suppress_picker_scroll_capture)
+        picker.destroy()
+
+    def test_wheel_handler_survives_a_destroyed_canvas(self):
+        app = self.build()
+        handlers = {}
+        with mock.patch.object(tk.Misc, "bind_all", lambda _self, seq, func: handlers.setdefault(seq, func)):
+            app.open_icon_picker(0)
+            picker = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel))
+            canvas = next(w for w in descendants(picker) if w.winfo_class() == "Canvas")
+            canvas.destroy()
+            handlers["<MouseWheel>"](SimpleNamespace(delta=-120))
+            picker.destroy()
+
+    def test_restore_picker_scroll_ignores_a_dead_canvas(self):
+        app = self.build()
+        app.open_icon_picker(0)
+        picker = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel))
+        canvas = next(w for w in descendants(picker) if w.winfo_class() == "Canvas")
+        app.last_picker_scroll = 0.5
+        app.pending_picker_restore = True
+
+        moved = mock.Mock()
+        canvas.yview_moveto = moved
+        app._move_picker_scroll(canvas)
+        self.assertEqual(moved.call_count, 1)
+
+        with mock.patch.object(tk.Canvas, "winfo_exists", lambda _c: False):
+            app._move_picker_scroll(canvas)
+        self.assertEqual(moved.call_count, 1)
         picker.destroy()
 
     def test_presets(self):
@@ -536,6 +661,50 @@ class StratagemAppTest(unittest.TestCase):
             app.send_sequence(["W"])
         self.assertEqual(self.user32.sent, [])
 
+    def test_blocked_sendinput_still_releases_ctrl(self):
+        app = self.build()
+        self.user32.sent.clear()
+        self.user32.failing = {0}
+        app.send_sequence(["W"])
+
+        self.assertEqual(self.user32.sent, [(0, 8), (0x57, 0), (0x57, 2), (0, 10)])
+        self.assertEqual(
+            app.status_var.get(),
+            "SendInput blocked - run this app as administrator to type into an elevated game.",
+        )
+        self.assertFalse(app.sending)
+
+    def test_blocked_ctrl_press_reports_and_stops(self):
+        app = self.build()
+        self.user32.sent.clear()
+        self.user32.failing = {8}
+        app.send_sequence(["W"])
+
+        self.assertEqual(self.user32.sent, [(0, 8)])
+        self.assertEqual(
+            app.status_var.get(),
+            "SendInput blocked - run this app as administrator to type into an elevated game.",
+        )
+        self.assertFalse(app.sending)
+
+    def test_ctrl_released_when_a_send_raises(self):
+        app = self.build()
+        self.user32.sent.clear()
+        self.user32.raising = {0}
+        with self.assertRaises(RuntimeError):
+            app.send_sequence(["W"])
+
+        self.assertEqual(self.user32.sent, [(0, 8), (0x57, 0), (0, 10)])
+        self.assertFalse(app.sending)
+
+    def test_second_activation_while_typing_is_refused(self):
+        app = self.build()
+        self.user32.sent.clear()
+        app.sending = True
+        app.activate_stratagem(0)
+        self.assertEqual(app.status_var.get(), "Still typing the previous sequence.")
+        self.assertEqual(self.user32.sent, [])
+
     def test_on_close_stops_hotkeys(self):
         app = self.build()
         stopped = []
@@ -591,6 +760,22 @@ class MainEntryPointTest(unittest.TestCase):
         mainloop.assert_called_once()
         # main() built the app on the root we handed it.
         self.assertTrue(self.root.winfo_children())
+
+    def test_main_reports_startup_errors(self):
+        mainloop = mock.Mock()
+        showerror = mock.Mock()
+        for patcher in (
+            mock.patch.object(tk, "Tk", lambda *_a, **_k: self.root),
+            mock.patch.object(tk.Tk, "mainloop", mainloop),
+            mock.patch.object(main, "StratagemApp", mock.Mock(side_effect=RuntimeError("bad icon"))),
+            mock.patch.object(main.messagebox, "showerror", showerror),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        main.main()
+        showerror.assert_called_once_with("pystrat", "Failed to start: bad icon")
+        mainloop.assert_not_called()
 
     def test_main_survives_a_theme_without_tcl_error_support(self):
         mainloop = mock.Mock()

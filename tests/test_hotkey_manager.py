@@ -69,6 +69,26 @@ class HotkeyManagerTest(unittest.TestCase):
 
         manager.stop()
 
+    def test_get_message_error_records_error_and_stops(self):
+        manager = self.make(lambda _i: None)
+        manager.user32.GetMessageW = lambda *_a: -1
+        manager.start({1000: 0x57})
+        manager.thread.join(5)
+
+        self.assertEqual(manager.errors, ["Hotkey message loop stopped (GetMessageW failed)."])
+        manager.stop()
+
+    def test_callback_failure_is_recorded_and_loop_continues(self):
+        def notify(hotkey_id):
+            raise RuntimeError("bad callback")
+
+        manager = self.make(notify, events=[1000])
+        manager.start({1000: 0x57})
+        manager.thread.join(5)
+
+        self.assertEqual(manager.errors, ["Hotkey callback failed: bad callback"])
+        manager.stop()
+
     def test_register_failure_records_error(self):
         fired = []
         manager = self.make(fired.append, events=[], register_ok=False)

@@ -7,7 +7,7 @@ import threading
 import time
 import tkinter as tk
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from tkinter import messagebox, simpledialog, ttk
 from tomllib import load as toml_load
@@ -21,7 +21,8 @@ from svglib.svglib import svg2rlg
 
 BASE_DIR = Path(__file__).resolve().parent
 RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", BASE_DIR))
-USER_DATA_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "pystrat"
+# Under a onefile exe BASE_DIR is the self-extraction temp dir, so it cannot hold settings.
+USER_DATA_DIR = Path(os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or str(Path.home())) / "pystrat"
 USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATA_FILE = USER_DATA_DIR / "user_data.json"
 STRATAGEMS_FILE = RESOURCE_DIR / "stratagems.json"
@@ -209,48 +210,46 @@ ALL_STRATAGEM_TYPES = frozenset(TYPE_LABELS.keys())
 
 @dataclass
 class UserData:
-    equipped_stratagems: list[str]
-    keybinds: list[dict[str, str]]
-    key_delay_ms: int
-    presets: dict[str, list[str]]
-    active_preset: str
-    input_keys: str
-    ship_modules: list[str]
+    equipped_stratagems: list[str] = field(default_factory=list)
+    keybinds: list[dict[str, str]] = field(default_factory=list)
+    key_delay_ms: int = 40
+    presets: dict[str, list[str]] = field(default_factory=dict)
+    active_preset: str = ""
+    input_keys: str = "wasd"
+    ship_modules: list[str] = field(default_factory=list)
+    corrupt: bool = False
 
     @classmethod
     def load(cls, path: Path) -> "UserData":
         if not path.exists():
-            return cls(
-                equipped_stratagems=[],
-                keybinds=[],
-                key_delay_ms=40,
-                presets={},
-                active_preset="",
-                input_keys="wasd",
-                ship_modules=[],
-            )
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        input_keys = raw.get("input_keys", "wasd")
-        if input_keys not in ("wasd", "arrows"):
-            input_keys = "wasd"
-        ship_modules = [
-            module_id
-            for module_id in raw.get("ship_modules", [])
-            if module_id in SHIP_MODULE_MAP
-        ]
-        legacy = LEGACY_NAMES.get
-        return cls(
-            equipped_stratagems=[legacy(n, n) for n in raw.get("equipped_stratagems", [])],
-            keybinds=raw.get("keybinds", []),
-            key_delay_ms=int(raw.get("key_delay_ms", 40)),
-            presets={
+            return cls()
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            input_keys = raw.get("input_keys", "wasd")
+            if input_keys not in ("wasd", "arrows"):
+                input_keys = "wasd"
+            legacy = LEGACY_NAMES.get
+            data = cls()
+            data.equipped_stratagems = [
+                legacy(n, n) for n in raw.get("equipped_stratagems", [])
+            ]
+            data.keybinds = raw.get("keybinds", [])
+            data.key_delay_ms = int(raw.get("key_delay_ms", 40))
+            data.presets = {
                 name: [legacy(n, n) for n in slots]
                 for name, slots in raw.get("presets", {}).items()
-            },
-            active_preset=raw.get("active_preset", ""),
-            input_keys=input_keys,
-            ship_modules=ship_modules,
-        )
+            }
+            data.active_preset = raw.get("active_preset", "")
+            data.input_keys = input_keys
+            data.ship_modules = [
+                module_id
+                for module_id in raw.get("ship_modules", [])
+                if isinstance(module_id, str)
+            ]
+            return data
+        except (OSError, ValueError, TypeError, AttributeError):
+            # Half-written or hand-edited settings must not stop the app from opening.
+            return cls(corrupt=True)
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -298,7 +297,7 @@ def load_stratagems() -> list[Stratagem]:
                 svg_path = ICON_DIR / "Emplacement Fallback.svg"
 
         png = render_svg_to_png_bytes(svg_path, 64)
-        image = tk.PhotoImage(data=png)
+        image = tk.PhotoImage(width=64, height=64) if png is None else tk.PhotoImage(data=png)
         seq_display = " ".join(arrows.get(step.upper(), step) for step in entry["sequence"])
         items.append(
             Stratagem(
@@ -324,11 +323,29 @@ def render_svg_to_png_bytes(svg_path: Path, size: int) -> str | None:
     drawing.scale(scale, scale)
     drawing.width = width * scale
     drawing.height = height * scale
-    return renderPM.drawToString(drawing, fmt="PNG", bg=0x0F0F12)
+    try:
+        return renderPM.drawToString(drawing, fmt="PNG", bg=0x0F0F12)
+    except Exception:  # noqa: BLE001 - a missing PNG backend or bad SVG must not stop startup
+        return None
 
 
 def parse_key_code(code: str) -> int:
     return int(code, 16)
+
+
+def clamp_delay_ms(value: int) -> int:
+    return max(10, min(300, value))
+
+
+def is_usable_keybind(entry: object, letters: set[str]) -> bool:
+    try:
+        return (
+            isinstance(entry, dict)
+            and entry["letter"] in letters
+            and parse_key_code(entry["key_code"]) > 0
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 class HotkeyManager:
@@ -364,7 +381,7 @@ class HotkeyManager:
         self.hotkey_map = dict(hotkey_map)
         self.thread = threading.Thread(target=self._message_loop, daemon=True)
         self.thread.start()
-        self.ready.wait(timeout=2)
+        self.ready.wait()
 
     def stop(self) -> None:
         if self.thread_id is not None:
@@ -384,9 +401,17 @@ class HotkeyManager:
 
         self.ready.set()
 
-        while self.user32.GetMessageW(self.ctypes.byref(msg), None, 0, 0) != 0:
-            if msg.message == WM_HOTKEY:
-                self.notify(int(msg.wParam))
+        while True:
+            result = self.user32.GetMessageW(self.ctypes.byref(msg), None, 0, 0)
+            if result == 0 or result == -1:
+                if result == -1:
+                    self.errors.append("Hotkey message loop stopped (GetMessageW failed).")
+                break
+            try:
+                if msg.message == WM_HOTKEY:
+                    self.notify(int(msg.wParam))
+            except Exception as exc:  # noqa: BLE001 - one bad callback must not kill the hotkey loop
+                self.errors.append(f"Hotkey callback failed: {exc}")
 
         for hotkey_id in list(self.hotkey_map.keys()):
             self.user32.UnregisterHotKey(None, hotkey_id)
@@ -409,13 +434,20 @@ class StratagemApp:
         self.stratagem_names = [item.name for item in self.stratagems]
 
         self.user_data = UserData.load(DATA_FILE)
+        fixed: list[str] = []
         self.keybinds = self.user_data.keybinds
         self.equipped = self.user_data.equipped_stratagems
-        self.key_delay_ms = self.user_data.key_delay_ms
+        clamped = clamp_delay_ms(self.user_data.key_delay_ms)
+        if clamped != self.user_data.key_delay_ms:
+            fixed.append(f"key delay {self.user_data.key_delay_ms} -> {clamped}")
+        self.key_delay_ms = clamped
         self.presets = self.user_data.presets
         self.active_preset = self.user_data.active_preset
         self.input_keys = self.user_data.input_keys
-        self.active_ship_modules: set[str] = set(self.user_data.ship_modules)
+        modules = [m for m in self.user_data.ship_modules if m in SHIP_MODULE_MAP]
+        if len(modules) != len(self.user_data.ship_modules):
+            fixed.append("dropped unknown ship modules")
+        self.active_ship_modules: set[str] = set(modules)
 
         desired_keybinds = [
             {"key_code": "0x67", "letter": "NumPad7"},
@@ -428,6 +460,12 @@ class StratagemApp:
             {"key_code": "0x62", "letter": "NumPad2"},
             {"key_code": "0x63", "letter": "NumPad3"},
         ]
+
+        known_letters = {entry["letter"] for entry in desired_keybinds}
+        usable = [entry for entry in self.keybinds if is_usable_keybind(entry, known_letters)]
+        if len(usable) != len(self.keybinds):
+            fixed.append("dropped unusable keybind entries")
+        self.keybinds = usable
 
         if not self.keybinds:
             self.keybinds = list(desired_keybinds)
@@ -445,9 +483,11 @@ class StratagemApp:
                 key=lambda entry: order_map.get(entry.get("letter"), 999)
             )
 
-        for name in self.equipped:
-            if name and name not in self.stratagem_names:
-                self.stratagem_names.append(name)
+        # Only names with an icon and a sequence can be shown, so unknown names are dropped.
+        known = [name for name in self.equipped if name in self.stratagem_map]
+        if len(known) != len(self.equipped):
+            fixed.append("dropped unknown equipped names")
+        self.equipped = known
 
         if len(self.equipped) < len(self.keybinds):
             default_fill = self.stratagem_names[
@@ -455,7 +495,27 @@ class StratagemApp:
             ]
             self.equipped.extend(default_fill)
         self.equipped = self.equipped[: len(self.keybinds)]
-        self.persist_user_data()
+        kept_presets = {}
+        for name, slots in self.presets.items():
+            kept = [slot for slot in slots if slot in self.stratagem_map]
+            if kept:
+                kept_presets[name] = kept
+        if kept_presets != self.presets:
+            fixed.append("dropped unknown preset slots")
+        self.presets = kept_presets
+        if self.active_preset and self.active_preset not in self.presets:
+            fixed.append(f"active preset {self.active_preset!r} no longer exists")
+            self.active_preset = ""
+        self.sending = False
+        self.status_var = tk.StringVar(value="Ready")
+        if self.user_data.corrupt:
+            # A settings file we could not read must not be overwritten with defaults.
+            self.status_var.set("user_data.json is corrupt - using defaults, nothing is saved.")
+        elif fixed:
+            # Fixed values are only written back once the user changes something.
+            self.status_var.set("Fixed settings: " + ", ".join(fixed))
+        else:
+            self.persist_user_data()
 
         self.sequence_labels: list[tk.Label] = []
         self.icon_canvases: list[tk.Canvas] = []
@@ -464,8 +524,6 @@ class StratagemApp:
         self.name_labels: list[tk.Label] = []
         self.cooldown_labels: list[tk.Label] = []
         self.cooldown_end: list[float] = [0.0] * len(self.keybinds)
-
-        self.status_var = tk.StringVar(value="Ready")
 
         self.hotkeys: HotkeyManager | None = None
         self.hotkey_id_to_index: dict[int, int] = {}
@@ -728,6 +786,18 @@ class StratagemApp:
         self.user_data.ship_modules = sorted(self.active_ship_modules)
         self.user_data.save(DATA_FILE)
 
+    def reset_corrupt_settings(self) -> None:
+        # Keep the unreadable file so a hand-edit can still be recovered.
+        backup = DATA_FILE.with_name(DATA_FILE.name + ".bak")
+        try:
+            DATA_FILE.rename(backup)
+        except OSError as exc:
+            self.status_var.set(f"Could not move {backup.name}: {exc}")
+            return
+        self.user_data.corrupt = False
+        self.status_var.set("Ready")
+        self.persist_user_data()
+
     def sequence_for(self, name: str) -> str:
         strat = self.stratagem_map.get(name)
         if not strat:
@@ -899,27 +969,14 @@ class StratagemApp:
         )
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        canvas.bind_all(
-            "<MouseWheel>",
-            lambda e: (
-                canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
-                self._remember_picker_scroll(canvas),
-            ),
-        )
-        canvas.bind_all(
-            "<Button-4>",
-            lambda _e: (
-                canvas.yview_scroll(-3, "units"),
-                self._remember_picker_scroll(canvas),
-            ),
-        )
-        canvas.bind_all(
-            "<Button-5>",
-            lambda _e: (
-                canvas.yview_scroll(3, "units"),
-                self._remember_picker_scroll(canvas),
-            ),
-        )
+        def on_wheel(event: tk.Event) -> None:
+            # bind_all is app-wide, so the canvas may already be gone.
+            if not canvas.winfo_exists():
+                return
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            self._remember_picker_scroll(canvas)
+
+        canvas.bind_all("<MouseWheel>", on_wheel)
 
         columns = 4
         size = 52
@@ -1030,9 +1087,13 @@ class StratagemApp:
         self.suppress_picker_scroll_capture = True
         canvas.update_idletasks()
         canvas.yview_moveto(self.last_picker_scroll)
-        canvas.after(50, lambda: canvas.yview_moveto(self.last_picker_scroll))
-        canvas.after(200, lambda: canvas.yview_moveto(self.last_picker_scroll))
+        canvas.after(50, lambda: self._move_picker_scroll(canvas))
+        canvas.after(200, lambda: self._move_picker_scroll(canvas))
         canvas.after(250, lambda: self._restore_picker_scroll_capture(previous))
+
+    def _move_picker_scroll(self, canvas: tk.Canvas) -> None:
+        if canvas.winfo_exists() and self.last_picker_scroll is not None:
+            canvas.yview_moveto(self.last_picker_scroll)
 
     def _restore_picker_scroll_capture(self, previous: bool) -> None:
         self.suppress_picker_scroll_capture = previous
@@ -1045,7 +1106,7 @@ class StratagemApp:
             value = int(self.key_delay_var.get())
         except ValueError:
             return
-        value = max(10, min(300, value))
+        value = clamp_delay_ms(value)
         self.key_delay_ms = value
         self.key_delay_var.set(value)
         self.persist_user_data()
@@ -1173,6 +1234,10 @@ class StratagemApp:
         if not strat:
             self.status_var.set(f"Unknown stratagem: {name}")
             return
+        if self.sending:
+            self.status_var.set("Still typing the previous sequence.")
+            return
+        self.sending = True
         sequence_text = " ".join(strat.sequence)
         self.status_var.set(f"Activated: {name} ({sequence_text})")
         self.start_cooldown(index, strat)
@@ -1237,6 +1302,7 @@ class StratagemApp:
 
     def send_sequence(self, sequence: list[str]) -> None:
         if os.name != "nt":
+            self.sending = False
             return
 
         user32 = ctypes.windll.user32
@@ -1251,35 +1317,46 @@ class StratagemApp:
         user32.SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(_INPUT), ctypes.c_int]
         user32.SendInput.restype = ctypes.c_uint
 
-        def send_key(vk: int, flags: int) -> None:
+        def send_key(vk: int, flags: int) -> bool:
             inp = _INPUT(1, _INPUTUNION(ki=_KEYBDINPUT(vk, 0, flags, 0, None)))
-            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
+            return bool(user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT)))
 
-        def send_ctrl(flags: int) -> None:
+        def send_ctrl(flags: int) -> bool:
             scan = user32.MapVirtualKeyW(VK_CONTROL, 0)
             inp = _INPUT(
                 1,
                 _INPUTUNION(ki=_KEYBDINPUT(0, scan, flags | KEYEVENTF_SCANCODE, 0, None)),
             )
-            user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT))
+            return bool(user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(_INPUT)))
 
-        send_ctrl(0)
-        time.sleep(0.02)
-        arrow_vk = {"W": VK_UP, "A": VK_LEFT, "S": VK_DOWN, "D": VK_RIGHT}
+        blocked = "SendInput blocked - run this app as administrator to type into an elevated game."
+        if not send_ctrl(0):
+            self.sending = False
+            self.status_var.set(blocked)
+            return
 
-        for entry in sequence:
-            key_name = entry.upper()
-            if self.input_keys == "arrows":
-                vk = arrow_vk.get(key_name)
-            else:
-                vk = KEY_VK.get(key_name)
-            if not vk:
-                continue
-            send_key(vk, 0)
+        blocked_mid_sequence = False
+        try:
             time.sleep(0.02)
-            send_key(vk, KEYEVENTF_KEYUP)
-            time.sleep(self.key_delay_ms / 1000.0)
-        send_ctrl(KEYEVENTF_KEYUP)
+            arrow_vk = {"W": VK_UP, "A": VK_LEFT, "S": VK_DOWN, "D": VK_RIGHT}
+            for entry in sequence:
+                key_name = entry.upper()
+                if self.input_keys == "arrows":
+                    vk = arrow_vk.get(key_name)
+                else:
+                    vk = KEY_VK.get(key_name)
+                if not vk:
+                    continue
+                blocked_mid_sequence |= not send_key(vk, 0)
+                time.sleep(0.02)
+                send_key(vk, KEYEVENTF_KEYUP)
+                time.sleep(self.key_delay_ms / 1000.0)
+        finally:
+            # Ctrl must be released even if a send fails mid-sequence.
+            send_ctrl(KEYEVENTF_KEYUP)
+            self.sending = False
+            if blocked_mid_sequence:
+                self.status_var.set(blocked)
 
     def on_close(self) -> None:
         if self.hotkeys:
@@ -1309,7 +1386,17 @@ def main() -> None:
         "Strat.Vertical.TScrollbar",
         background=[("active", SCROLLBAR_ACTIVE_BG), ("pressed", SCROLLBAR_ACTIVE_BG)],
     )
-    StratagemApp(root)
+    try:
+        app = StratagemApp(root)
+    except Exception as exc:  # noqa: BLE001 - the windowed exe has no console to show this
+        messagebox.showerror("pystrat", f"Failed to start: {exc}")
+        root.destroy()
+        return
+    if app.user_data.corrupt and messagebox.askyesno(
+        "pystrat",
+        "user_data.json is corrupt. Start fresh? The unreadable file is kept as user_data.json.bak.",
+    ):
+        app.reset_corrupt_settings()
     root.mainloop()
 
 

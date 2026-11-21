@@ -28,6 +28,17 @@ class UserDataMigrationTest(unittest.TestCase):
         self.assertEqual(data.equipped_stratagems, ["Orbital Laser"])
         self.assertEqual(data.presets, {"p": ["Solo Silo"]})
 
+    def test_corrupt_file_falls_back_to_defaults(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "user_data.json"
+            path.write_text("{ not json", encoding="utf-8")
+            data = main.UserData.load(path)
+
+        self.assertTrue(data.corrupt)
+        self.assertEqual(data.equipped_stratagems, [])
+        self.assertEqual(data.key_delay_ms, 40)
+        self.assertEqual(data.input_keys, "wasd")
+
     def test_unknown_input_keys_fall_back_to_wasd(self):
         data = self.load({"equipped_stratagems": ["Orbital Laser"], "input_keys": "vim"})
         self.assertEqual(data.input_keys, "wasd")
