@@ -3,5 +3,9 @@
 - Added five mission-only stratagems with codes and icons: Aquifer Drill, Portable Comms Relay, Activate E-711 Extraction Drill, Tactical Video Camera, Link Hellpods to Destroyer.
 - Added tests for saved-name migration, fallback icons, and the new error paths.
 - Fixed crashes and silent failures: an unreadable settings file now starts the app with defaults, shows an error, and offers to start fresh (keeping the bad file as `user_data.json.bak`); bad settings values are corrected on launch and listed in the status bar (Key Delay clamped to 10-300 ms, keybind entries without a known numpad key or hex key code dropped, names not in `stratagems.json` dropped); unrenderable SVGs no longer stop startup; `SendInput` failures are reported instead of printing a false "Activated", and Ctrl is released even when a send fails; pressing a hotkey while a sequence is still typing is refused; picker mouse-wheel handlers no longer run on a closed window; hotkey loop errors are recorded instead of ending the loop silently.
+- Cooldown text no longer shows one second more than is left, and the icon arc now reflects the armed cooldown instead of staying full for entries without one.
+- A change writes the settings file once; a preset click used to write it ten times.
+- The `pyproject.toml` handle is closed after reading the version.
 - `release.py` runs in the repo directory, refuses a dirty working tree or an existing tag, and creates the release before pushing the tag.
+- `build_exe.py` no longer passes the redundant `--hidden-import tkinter` flags, `clean()` clears `dist/` too, and a release uploads one artifact instead of the exe plus a zip of the same exe.
 - The status bar turns amber and shows `Num Lock off` while Num Lock is off, because the numpad hotkeys only fire with it on.

@@ -29,6 +29,7 @@ def main() -> None:
         raise SystemExit(f"Tag {tag} already exists")
 
     release_notes = (root / "RELEASE.md").read_text()
+    build_exe.clean()
     build_exe.build()
 
     exe_path = root / "dist" / "pystrat.exe"
@@ -40,8 +41,9 @@ def main() -> None:
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write(exe_path, exe_path.name)
 
+    # One artifact: the zip, because people find zips easier to download past AV.
     subprocess.run(
-        ["gh", "release", "create", tag, str(exe_path), str(zip_path), "-t", tag, "-n", release_notes],
+        ["gh", "release", "create", tag, str(zip_path), "-t", tag, "-n", release_notes],
         check=True,
         cwd=root,
     )

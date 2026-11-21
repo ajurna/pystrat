@@ -86,6 +86,8 @@ def fake_hotkey_manager(errors=None, raise_runtime=False):
 
 class FakeUser32:
     """Records SendInput calls instead of injecting keystrokes."""
+    # shortcut: the API is faked, so real elevation (UIPI) cannot be observed here;
+    # only the code path for a reported failure is, through the sets below.
 
     def __init__(self):
         self.sent = []
@@ -145,6 +147,7 @@ class StratagemAppTest(unittest.TestCase):
             # root (they only print "invalid command name" noise); the closures they
             # schedule are invoked directly by the tests below.
             mock.patch.object(tk.Misc, "after", lambda *_a, **_k: None),
+            # os.name and windll are patched so the Windows-only branches run anywhere.
             mock.patch.object(os, "name", "nt"),
             mock.patch.object(ctypes, "windll", fake_windll(self.user32)),
             mock.patch.object(ctypes, "byref", lambda obj: obj),

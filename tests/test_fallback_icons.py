@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import tempfile
 import unittest
@@ -5,6 +6,8 @@ from pathlib import Path
 from unittest import mock
 
 import main
+
+HAS_CAIRO = importlib.util.find_spec("rlPyCairo") is not None
 
 # Stratagem types that have a dedicated fallback icon. "resupply" has none:
 # every resupply stratagem is expected to ship its own icon.
@@ -37,6 +40,7 @@ class FallbackIconFilesTest(unittest.TestCase):
         on_disk = {path.name for path in main.ICON_DIR.glob("* Fallback.svg")}
         self.assertEqual(on_disk, set(FALLBACK_ICONS.values()))
 
+    @unittest.skipUnless(HAS_CAIRO, "renderPM needs the rlPyCairo backend")
     def test_fallback_icons_render_to_png(self):
         for stratagem_type, filename in FALLBACK_ICONS.items():
             with self.subTest(type=stratagem_type):
@@ -81,6 +85,8 @@ class FallbackIconSelectionTest(unittest.TestCase):
             mock.patch.object(main, "ICON_DIR", self.icon_dir),
             mock.patch.object(main, "STRATAGEMS_FILE", self.stratagems_file),
             mock.patch.object(main, "render_svg_to_png_bytes", fake_render),
+            # shortcut: PhotoImage is faked, so a None PNG cannot raise here; the None
+            # guard is covered by test_unrenderable_svg_uses_blank_placeholder.
             mock.patch.object(main.tk, "PhotoImage", fake_photo_image),
         ):
             patcher.start()

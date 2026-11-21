@@ -34,7 +34,7 @@ def build_env() -> dict[str, str]:
 
 def clean() -> None:
     """Remove stale PyInstaller output so a rebuild never reuses old analysis."""
-    targets = [ROOT / "build", ROOT / "dist" / "pystrat.exe", *ROOT.glob("*.spec")]
+    targets = [ROOT / "build", ROOT / "dist", *ROOT.glob("*.spec")]
     for path in targets:
         if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
@@ -55,10 +55,6 @@ def build() -> None:
         "pystrat",
         "--icon",
         "app.ico",
-        "--hidden-import",
-        "tkinter",
-        "--hidden-import",
-        "_tkinter",
         "--add-data",
         "pyproject.toml;.",
         "--add-data",
