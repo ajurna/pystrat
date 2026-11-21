@@ -532,6 +532,7 @@ class StratagemApp:
         self.name_labels: list[tk.Label] = []
         self.cooldown_labels: list[tk.Label] = []
         self.cooldown_end: list[float] = [0.0] * len(self.keybinds)
+        self.cooldown_total: list[float] = [0.0] * len(self.keybinds)
 
         self.hotkeys: HotkeyManager | None = None
         self.hotkey_id_to_index: dict[int, int] = {}
@@ -821,24 +822,22 @@ class StratagemApp:
         self.persist_user_data()
 
     def sequence_for(self, name: str) -> str:
-        strat = self.stratagem_map.get(name)
-        if not strat:
-            return "?"
-        return strat.sequence_display
+        return self.stratagem_map[name].sequence_display
 
     def set_stratagem(self, index: int, name: str) -> None:
+        strat = self.stratagem_map[name]
         self.equipped[index] = name
-        self.sequence_labels[index].configure(text=self.sequence_for(name))
+        self.sequence_labels[index].configure(text=strat.sequence_display)
         self.name_labels[index].configure(text=name)
         self.icon_canvases[index].itemconfigure(
-            self.icon_image_items[index], image=self.stratagem_map[name].icon
+            self.icon_image_items[index], image=strat.icon
         )
         self.cooldown_end[index] = 0.0
+        self.cooldown_total[index] = 0.0
         self.cooldown_labels[index].configure(text="Ready", fg=MUTED_FG)
         self.icon_canvases[index].itemconfigure(
             self.icon_arc_items[index], extent=0, state="hidden"
         )
-        self.persist_user_data()
 
     def describe_ship_module(self, module: ShipModule) -> str:
         if len(module.types) == len(ALL_STRATAGEM_TYPES):
@@ -1093,6 +1092,7 @@ class StratagemApp:
     ) -> None:
         self.set_stratagem(index, name)
         picker.destroy()
+        self.persist_user_data()
 
     def _remember_picker_scroll(self, canvas: tk.Canvas) -> None:
         if self.suppress_picker_scroll_capture:
@@ -1252,10 +1252,7 @@ class StratagemApp:
 
     def activate_stratagem(self, index: int) -> None:
         name = self.equipped[index]
-        strat = self.stratagem_map.get(name)
-        if not strat:
-            self.status_var.set(f"Unknown stratagem: {name}")
-            return
+        strat = self.stratagem_map[name]
         if self.sending:
             self.status_var.set("Still typing the previous sequence.")
             return
@@ -1283,6 +1280,7 @@ class StratagemApp:
         if not cooldown:
             return
         self.cooldown_end[index] = time.monotonic() + cooldown
+        self.cooldown_total[index] = cooldown
         self.icon_canvases[index].itemconfigure(
             self.icon_arc_items[index], extent=-360, state="normal"
         )
@@ -1311,20 +1309,20 @@ class StratagemApp:
             if remaining <= 0:
                 if end:
                     self.cooldown_end[index] = 0.0
+                    self.cooldown_total[index] = 0.0
                     self.cooldown_labels[index].configure(text="Ready", fg=MUTED_FG)
                     canvas.itemconfigure(arc_item, extent=0, state="hidden")
                 continue
 
-            strat = self.stratagem_map.get(self.equipped[index])
-            effective = strat and self.effective_cooldown(strat)
-            total = effective if effective else remaining
+            total = self.cooldown_total[index]
             self.cooldown_labels[index].configure(
                 text=self.format_cooldown(remaining), fg=AMBER
             )
-            fraction_remaining = max(0.0, min(1.0, remaining / total))
-            canvas.itemconfigure(
-                arc_item, extent=-360 * fraction_remaining, state="normal"
-            )
+            # The arc is a share of the total that was armed, not of the time left.
+            if total:
+                canvas.itemconfigure(
+                    arc_item, extent=-360 * min(1.0, remaining / total), state="normal"
+                )
 
         if self.root.winfo_exists():
             self.root.after(200, self.update_cooldowns)

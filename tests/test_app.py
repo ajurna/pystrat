@@ -293,12 +293,11 @@ class StratagemAppTest(unittest.TestCase):
         main.main()
         app.reset_corrupt_settings.assert_called_once()
 
-    def test_sequence_for_unknown_name(self):
+    def test_sequence_for(self):
         app = self.build()
-        self.assertEqual(app.sequence_for("Ghost Name"), "?")
         self.assertEqual(app.sequence_for("Alpha Strike"), "⬆ ⬅ ⬇ ➡")
 
-    def test_set_stratagem_updates_widgets_and_saves(self):
+    def test_set_stratagem_updates_widgets(self):
         app = self.build()
         app.equipped[0] = "Belt Fed"
         app.set_stratagem(0, "Alpha Strike")
@@ -308,7 +307,25 @@ class StratagemAppTest(unittest.TestCase):
         self.assertEqual(app.sequence_labels[0].cget("text"), "⬆ ⬅ ⬇ ➡")
         self.assertEqual(app.cooldown_labels[0].cget("text"), "Ready")
         self.assertEqual(app.cooldown_end[0], 0.0)
-        self.assertEqual(self.saved()["equipped_stratagems"], app.equipped)
+        self.assertEqual(app.cooldown_total[0], 0.0)
+
+    def test_picker_selection_saves_the_slot(self):
+        app = self.build()
+        picker = SimpleNamespace(destroy=lambda: None)
+
+        app._select_stratagem_from_picker(picker, 0, "Alpha Strike")
+
+        self.assertEqual(self.saved()["equipped_stratagems"][0], "Alpha Strike")
+
+    def test_preset_select_writes_once(self):
+        app = self.build({"presets": {"loadout": FIXTURE_NAMES}, "active_preset": "loadout"})
+        app.preset_var.set("loadout")
+
+        with mock.patch.object(main.StratagemApp, "persist_user_data", autospec=True) as persist:
+            app.on_preset_select(None)
+
+        # set_stratagem no longer saves, so a click is one write instead of ten.
+        self.assertEqual(persist.call_count, 1)
 
     def test_describe_ship_module_both_scopes(self):
         app = self.build()
@@ -597,9 +614,6 @@ class StratagemAppTest(unittest.TestCase):
 
     def test_activate_stratagem(self):
         app = self.build()
-        app.equipped[1] = "Ghost Name"
-        app.activate_stratagem(1)
-        self.assertEqual(app.status_var.get(), "Unknown stratagem: Ghost Name")
 
         with mock.patch.object(time, "monotonic", lambda: 1000.0):
             app.activate_stratagem(0)
@@ -622,6 +636,7 @@ class StratagemAppTest(unittest.TestCase):
             self.assertEqual(app.cooldown_end[1], 0.0)
             app.start_cooldown(0, app.stratagem_map["Alpha Strike"])
             self.assertEqual(app.cooldown_end[0], 1120.0)
+            self.assertEqual(app.cooldown_total[0], 120.0)
 
     def test_format_cooldown(self):
         app = self.build()
@@ -655,19 +670,30 @@ class StratagemAppTest(unittest.TestCase):
 
     def test_update_cooldowns(self):
         app = self.build()
-        app.equipped[1] = "Ghost Name"
         with mock.patch.object(time, "monotonic", lambda: 1000.0):
-            app.cooldown_end[0] = 1100.0
+            app.cooldown_end[0] = 1075.0
+            app.cooldown_total[0] = 100.0
             app.cooldown_end[1] = 1010.0
+            app.cooldown_total[1] = 20.0
             app.cooldown_end[2] = 0.0
             app.update_cooldowns()
-            self.assertEqual(app.cooldown_labels[0].cget("text"), "1:40")
+            self.assertEqual(app.cooldown_labels[0].cget("text"), "1:15")
             self.assertEqual(app.cooldown_labels[1].cget("text"), "10s")
             self.assertEqual(app.cooldown_labels[2].cget("text"), "Ready")
+            # Arc reflects the armed total instead of the remaining time.
+            self.assertEqual(
+                app.icon_canvases[0].itemconfigure(app.icon_arc_items[0], "extent")[-1],
+                "-270.0",
+            )
+            self.assertEqual(
+                app.icon_canvases[1].itemconfigure(app.icon_arc_items[1], "extent")[-1],
+                "-180.0",
+            )
 
             app.cooldown_end[0] = 999.0
             app.update_cooldowns()
             self.assertEqual(app.cooldown_end[0], 0.0)
+            self.assertEqual(app.cooldown_total[0], 0.0)
             self.assertEqual(app.cooldown_labels[0].cget("text"), "Ready")
 
     def test_send_sequence(self):
