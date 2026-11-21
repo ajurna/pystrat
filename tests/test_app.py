@@ -625,6 +625,8 @@ class StratagemAppTest(unittest.TestCase):
         app = self.build()
         self.assertEqual(app.format_cooldown(70.5), "1:11")
         self.assertEqual(app.format_cooldown(3.2), "4s")
+        # A whole second must not round up to the next one.
+        self.assertEqual(app.format_cooldown(12.0), "12s")
 
     def test_update_cooldowns(self):
         app = self.build()
@@ -634,8 +636,8 @@ class StratagemAppTest(unittest.TestCase):
             app.cooldown_end[1] = 1010.0
             app.cooldown_end[2] = 0.0
             app.update_cooldowns()
-            self.assertEqual(app.cooldown_labels[0].cget("text"), "1:41")
-            self.assertEqual(app.cooldown_labels[1].cget("text"), "11s")
+            self.assertEqual(app.cooldown_labels[0].cget("text"), "1:40")
+            self.assertEqual(app.cooldown_labels[1].cget("text"), "10s")
             self.assertEqual(app.cooldown_labels[2].cget("text"), "Ready")
 
             app.cooldown_end[0] = 999.0

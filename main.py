@@ -1,5 +1,6 @@
 import ctypes
 import json
+import math
 import os
 import queue
 import sys
@@ -420,7 +421,8 @@ class HotkeyManager:
 class StratagemApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.version = toml_load(PYPROJECT.open('rb'))['project']['version']
+        with PYPROJECT.open("rb") as handle:
+            self.version = toml_load(handle)["project"]["version"]
         self.root.title(f"Stratagem Hotkeys v{self.version}")
         self.root.configure(bg=DARK_BG)
         icon_path = RESOURCE_DIR / "app.ico"
@@ -1266,7 +1268,7 @@ class StratagemApp:
         )
 
     def format_cooldown(self, seconds: float) -> str:
-        total = int(seconds) + 1
+        total = math.ceil(seconds)
         if total >= 60:
             minutes, secs = divmod(total, 60)
             return f"{minutes}:{secs:02d}"
