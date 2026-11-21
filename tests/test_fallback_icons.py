@@ -44,6 +44,10 @@ class FallbackIconFilesTest(unittest.TestCase):
                 self.assertIsNotNone(png)
                 self.assertTrue(png.startswith(PNG_SIGNATURE))
 
+    def test_unparseable_svg_returns_none(self):
+        with mock.patch.object(main, "svg2rlg", lambda _path: None):
+            self.assertIsNone(main.render_svg_to_png_bytes(main.ICON_DIR / "Orbital Fallback.svg", 64))
+
 
 class FallbackIconSelectionTest(unittest.TestCase):
     """Drives the real load_stratagems against a temporary icon directory."""
@@ -122,7 +126,3 @@ class BundledStratagemIconsTest(unittest.TestCase):
                     own.is_file() or (fallback is not None and fallback.is_file()),
                     f"no icon or fallback for {entry['name']} ({entry['type']})",
                 )
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -24,7 +24,7 @@
   {"name": "Eagle Fly By", "sequence": ["W", "S", "S", "W", "W", "S", "S", "W", "W"], "category": "Offensive", "cooldown_seconds": 15, "type": "eagle"},
 
   {"name": "Defoliation Tool", "sequence": ["S", "A", "D", "D", "S"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "CQC-20", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Breaching Hammer", "sequence": ["S", "A", "D", "A", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "One True Flag", "sequence": ["S", "A", "D", "D", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Machine Gun", "sequence": ["S", "A", "S", "W", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Stalwart", "sequence": ["S", "A", "S", "W", "W", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
@@ -39,9 +39,9 @@
   {"name": "Flamethrower", "sequence": ["S", "A", "W", "S", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Laser Cannon", "sequence": ["S", "A", "S", "W", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Quasar Cannon", "sequence": ["S", "S", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "ARC-3 Arc Thrower", "sequence": ["S", "D", "S", "W", "A", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Arc Thrower", "sequence": ["S", "D", "S", "W", "A", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Commando", "sequence": ["S", "A", "W", "S", "D"], "category": "Supply", "cooldown_seconds": 120, "type": "support_weapon"},
-  {"name": "EAT-411", "sequence": ["S", "S", "A", "W", "S"], "category": "Supply", "cooldown_seconds": 140, "type": "support_weapon"},
+  {"name": "Leveller", "sequence": ["S", "S", "A", "W", "S"], "category": "Supply", "cooldown_seconds": 140, "type": "support_weapon"},
   {"name": "Expendable Napalm", "sequence": ["S", "S", "A", "W", "A"], "category": "Supply", "cooldown_seconds": 140, "type": "support_weapon"},
   {"name": "Solo Silo", "sequence": ["S", "W", "D", "S", "S"], "category": "Supply", "cooldown_seconds": 180, "type": "support_weapon"},
   {"name": "Bullet Storm", "sequence": ["S", "A", "S", "D", "W", "A"], "category": "Supply", "cooldown_seconds": 70, "type": "support_weapon"},
@@ -53,7 +53,7 @@
   {"name": "Cremator", "sequence": ["S", "S", "D", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "W.A.S.P Launcher", "sequence": ["S", "S", "W", "S", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Maxigun", "sequence": ["S", "A", "D", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
-  {"name": "GL-28", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
+  {"name": "Belt-Fed Grenade Launcher", "sequence": ["S", "A", "W", "A", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Recoilless Rifle", "sequence": ["S", "A", "D", "D", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "Steriliser", "sequence": ["S", "A", "W", "S", "A"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
   {"name": "De-Escalator", "sequence": ["S", "D", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 480, "type": "support_weapon"},
@@ -79,7 +79,7 @@
   {"name": "Incinerator FRV", "sequence": ["A", "S", "D", "A", "S", "W", "W"], "category": "Supply", "cooldown_seconds": 480, "type": "vehicle"},
 
   {"name": "Bastion MK XVI", "sequence": ["A", "S", "D", "S", "A", "S", "W", "S", "W"], "category": "Supply", "cooldown_seconds": 780, "type": "tank"},
-  {"name": "TD-110 Maelstrom", "sequence": ["A", "S", "D", "S", "A", "S", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 780, "type": "tank"},
+  {"name": "Maelstrom", "sequence": ["A", "S", "D", "S", "A", "S", "W", "A", "D"], "category": "Supply", "cooldown_seconds": 780, "type": "tank"},
 
   {"name": "Emancipator Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "W"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
   {"name": "Patriot Exosuit", "sequence": ["A", "S", "D", "W", "A", "S", "S"], "category": "Supply", "cooldown_seconds": 420, "type": "exosuit"},
@@ -101,7 +101,7 @@
   {"name": "Grenadier Battlement", "sequence": ["S", "D", "S", "A", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
   {"name": "Anti-Tank Emplacement", "sequence": ["S", "W", "A", "D", "D", "D"], "category": "Defensive", "cooldown_seconds": 180, "type": "emplacement"},
   {"name": "HMG Emplacement", "sequence": ["S", "W", "A", "D", "D", "A"], "category": "Defensive", "cooldown_seconds": 180, "type": "emplacement"},
-  {"name": "ARC-3 Tesla Tower", "sequence": ["S", "W", "D", "W", "A", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "sentry"},
+  {"name": "Tesla Tower", "sequence": ["S", "W", "D", "W", "A", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "sentry"},
   {"name": "Anti-Tank Mines", "sequence": ["S", "A", "W", "W"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
   {"name": "Gas Mines", "sequence": ["S", "A", "A", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
   {"name": "Anti-Personnel Minefield", "sequence": ["S", "A", "W", "D"], "category": "Defensive", "cooldown_seconds": 120, "type": "emplacement"},
@@ -124,6 +124,10 @@
   {"name": "Hive Breaker Drill", "sequence": ["A", "W", "S", "D", "S", "S"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
   {"name": "SSSD Delivery", "sequence": ["S", "S", "S", "W", "W"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
   {"name": "Cargo Container", "sequence": ["W", "W", "S", "S", "D", "S"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
-  {"name": "Call In Super Destroyer", "sequence": ["W", "W", "S", "S", "A", "D", "A", "D"], "category": "General", "cooldown_seconds": 0, "type": "mission"}
-
+  {"name": "Call In Super Destroyer", "sequence": ["W", "W", "S", "S", "A", "D", "A", "D"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
+  {"name": "Aquifer Drill", "sequence": ["A", "A", "A", "W", "S", "D", "S", "S"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
+  {"name": "Portable Comms Relay", "sequence": ["W", "W", "S", "S", "A", "A", "S"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
+  {"name": "Activate E-711 Extraction Drill", "sequence": ["S", "S", "A", "A", "S", "S"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
+  {"name": "Tactical Video Camera", "sequence": ["D", "S", "S", "W", "A", "A", "W"], "category": "General", "cooldown_seconds": 0, "type": "mission"},
+  {"name": "Link Hellpods to Destroyer", "sequence": ["A", "D", "W", "W", "W"], "category": "General", "cooldown_seconds": 0, "type": "mission"}
 ]

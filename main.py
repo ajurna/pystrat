@@ -28,6 +28,9 @@ STRATAGEMS_FILE = RESOURCE_DIR / "stratagems.json"
 ICON_DIR = RESOURCE_DIR / "StratagemIcons"
 PYPROJECT = RESOURCE_DIR / "pyproject.toml"
 
+# Saved settings keep old names, so renames in stratagems.json are mapped on load.
+LEGACY_NAMES = {"CQC-20": "Breaching Hammer", "ARC-3 Arc Thrower": "Arc Thrower", "EAT-411": "Leveller", "GL-28": "Belt-Fed Grenade Launcher", "TD-110 Maelstrom": "Maelstrom", "ARC-3 Tesla Tower": "Tesla Tower"}
+
 DARK_BG = "#131316"
 CARD_BG = "#1c1c22"
 TEXT_FG = "#f1f1f3"
@@ -235,11 +238,15 @@ class UserData:
             for module_id in raw.get("ship_modules", [])
             if module_id in SHIP_MODULE_MAP
         ]
+        legacy = LEGACY_NAMES.get
         return cls(
-            equipped_stratagems=raw.get("equipped_stratagems", []),
+            equipped_stratagems=[legacy(n, n) for n in raw.get("equipped_stratagems", [])],
             keybinds=raw.get("keybinds", []),
             key_delay_ms=int(raw.get("key_delay_ms", 40)),
-            presets=raw.get("presets", {}),
+            presets={
+                name: [legacy(n, n) for n in slots]
+                for name, slots in raw.get("presets", {}).items()
+            },
             active_preset=raw.get("active_preset", ""),
             input_keys=input_keys,
             ship_modules=ship_modules,
@@ -652,7 +659,8 @@ class StratagemApp:
                 canvas_size / 2,
                 canvas_size / 2,
                 anchor="center",
-                image=self.stratagem_map[self.equipped[index]].icon,
+                image=self.stratagem_map.get(self.equipped[index]).icon,
+
             )
             arc_item = icon_canvas.create_arc(
                 2,
@@ -1154,7 +1162,7 @@ class StratagemApp:
             try:
                 if self.root.winfo_exists():
                     func()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - one bad callback must not kill the UI loop
                 self.status_var.set(f"UI update error: {exc}")
         if self.root.winfo_exists():
             self.root.after(30, self.process_ui_queue)
@@ -1301,7 +1309,7 @@ def main() -> None:
         "Strat.Vertical.TScrollbar",
         background=[("active", SCROLLBAR_ACTIVE_BG), ("pressed", SCROLLBAR_ACTIVE_BG)],
     )
-    app = StratagemApp(root)
+    StratagemApp(root)
     root.mainloop()
 
 
